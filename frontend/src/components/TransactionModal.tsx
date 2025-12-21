@@ -28,6 +28,7 @@ const TransactionModal = ({ isOpen, onClose, onSuccess }: TransactionModalProps)
     'Saúde',
     'Trabalho',
     'Investimentos',
+    'Educação',
     'Outros',
   ]
 
