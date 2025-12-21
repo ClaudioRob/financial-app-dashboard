@@ -5,9 +5,8 @@ import StatsCards from './components/StatsCards'
 import ChartsSection from './components/ChartsSection'
 import RecentTransactions from './components/RecentTransactions'
 import TransactionModal from './components/TransactionModal'
-import ImportModal from './components/ImportModal'
 import AdminDashboard from './components/AdminDashboard'
-import { fetchDashboardData, clearAllData } from './services/api'
+import { fetchDashboardData } from './services/api'
 
 export interface DashboardData {
   balance: {
@@ -35,7 +34,6 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false)
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
   const [isAdminMode, setIsAdminMode] = useState(false)
 
   useEffect(() => {
@@ -53,21 +51,6 @@ function App() {
       console.error('Erro ao carregar dashboard:', err)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const handleClearData = async () => {
-    if (!window.confirm('Tem certeza que deseja limpar todos os dados? Esta ação não pode ser desfeita.')) {
-      return
-    }
-
-    try {
-      await clearAllData()
-      await loadData()
-      alert('Todos os dados foram limpos com sucesso!')
-    } catch (err) {
-      alert('Erro ao limpar dados. Tente novamente.')
-      console.error('Erro ao limpar dados:', err)
     }
   }
 
@@ -112,8 +95,6 @@ function App() {
     <div className="app">
       <Header
         onNewTransaction={() => setIsTransactionModalOpen(true)}
-        onImport={() => setIsImportModalOpen(true)}
-        onClearData={handleClearData}
         onAdminMode={() => setIsAdminMode(true)}
       />
       <main className="main-content">
@@ -127,12 +108,6 @@ function App() {
       <TransactionModal
         isOpen={isTransactionModalOpen}
         onClose={() => setIsTransactionModalOpen(false)}
-        onSuccess={handleDataUpdated}
-      />
-      
-      <ImportModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
         onSuccess={handleDataUpdated}
       />
     </div>

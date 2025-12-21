@@ -1,12 +1,16 @@
-import { useState, useEffect } from 'react'
-import { X, Edit2, Trash2, Save, Plus } from './icons'
-import { fetchAccountPlan, importAccountPlan, type AccountPlan } from '../services/api'
-import { fetchDashboardData, updateTransaction, deleteTransaction } from '../services/api'
+import { useState, useEffect, useMemo } from 'react'
+import { X, Edit2, Trash2, Save, Plus, Upload, ChevronUp, ChevronDown } from './icons'
+import { fetchAccountPlan, importAccountPlan, type AccountPlan, clearAccountPlan } from '../services/api'
+import { fetchDashboardData, updateTransaction, deleteTransaction, clearAllData } from '../services/api'
+import ImportModal from './ImportModal'
 import './AdminDashboard.css'
 
 interface AdminDashboardProps {
   onClose: () => void
 }
+
+type SortField = string
+type SortDirection = 'asc' | 'desc' | null
 
 const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
   const [activeTab, setActiveTab] = useState<'account-plan' | 'transactions'>('account-plan')
@@ -16,6 +20,9 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
   const [editingId, setEditingId] = useState<string | number | null>(null)
   const [editedAccount, setEditedAccount] = useState<AccountPlan | null>(null)
   const [editedTransaction, setEditedTransaction] = useState<any>(null)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null)
 
   useEffect(() => {
     loadData()
@@ -100,7 +107,11 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
     if (!editedTransaction) return
 
     try {
-      await updateTransaction(editedTransaction.id, editedTransaction)
+      // Converter ID para string se necessário para a API
+      const transactionId = typeof editedTransaction.id === 'string' 
+        ? editedTransaction.id 
+        : String(editedTransaction.id)
+      await updateTransaction(transactionId as any, editedTransaction)
       const updated = transactions.map(t => 
         t.id === editedTransaction.id ? editedTransaction : t
       )
@@ -115,11 +126,11 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
     }
   }
 
-  const handleDeleteTransaction = async (id: number) => {
+  const handleDeleteTransaction = async (id: number | string) => {
     if (!window.confirm('Tem certeza que deseja excluir esta transação?')) return
 
     try {
-      await deleteTransaction(id)
+      await deleteTransaction(id as any)
       const updated = transactions.filter(t => t.id !== id)
       setTransactions(updated)
       alert('Transação excluída com sucesso!')
@@ -127,6 +138,113 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
       console.error('Erro ao excluir transação:', err)
       alert('Erro ao excluir transação')
     }
+  }
+
+  const handleClearAllData = async () => {
+    const confirmMessage = activeTab === 'account-plan' 
+      ? 'Tem certeza que deseja limpar TODOS os dados do plano de contas? Esta ação não pode ser desfeita.'
+      : 'Tem certeza que deseja limpar TODOS os lançamentos? Esta ação não pode ser desfeita.'
+    
+    if (!window.confirm(confirmMessage)) return
+
+    try {
+      if (activeTab === 'account-plan') {
+        // Limpar plano de contas
+        await clearAccountPlan()
+        setAccountPlan([])
+        alert('Plano de contas limpo com sucesso!')
+      } else {
+        // Limpar transações usando a função da API
+        await clearAllData()
+        setTransactions([])
+        alert('Todos os lançamentos foram limpos com sucesso!')
+      }
+    } catch (err: any) {
+      console.error('Erro ao limpar dados:', err)
+      alert(err.message || 'Erro ao limpar dados. Tente novamente.')
+    }
+  }
+
+  const handleImportSuccess = () => {
+    loadData()
+  }
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      // Alternar direção: null -> asc -> desc -> null
+      if (sortDirection === 'asc') {
+        setSortDirection('desc')
+      } else if (sortDirection === 'desc') {
+        setSortField(null)
+        setSortDirection(null)
+      } else {
+        setSortDirection('asc')
+      }
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortedAccountPlan = useMemo(() => {
+    if (!sortField || !sortDirection) return accountPlan
+    
+    const sorted = [...accountPlan].sort((a, b) => {
+      const aVal = a[sortField as keyof AccountPlan] || ''
+      const bVal = b[sortField as keyof AccountPlan] || ''
+      
+      if (sortDirection === 'asc') {
+        return String(aVal).localeCompare(String(bVal), 'pt-BR', { numeric: true })
+      } else {
+        return String(bVal).localeCompare(String(aVal), 'pt-BR', { numeric: true })
+      }
+    })
+    
+    return sorted
+  }, [accountPlan, sortField, sortDirection])
+
+  const sortedTransactions = useMemo(() => {
+    if (!sortField || !sortDirection) return transactions
+    
+    const sorted = [...transactions].sort((a, b) => {
+      let aVal: any = a[sortField]
+      let bVal: any = b[sortField]
+      
+      // Tratamento especial para campos numéricos e datas
+      if (sortField === 'amount') {
+        aVal = Math.abs(aVal || 0)
+        bVal = Math.abs(bVal || 0)
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
+      }
+      
+      if (sortField === 'date') {
+        aVal = new Date(aVal || 0).getTime()
+        bVal = new Date(bVal || 0).getTime()
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
+      }
+      
+      // Para Id_Item, usar o valor do campo Id_Item ou o id como fallback
+      if (sortField === 'Id_Item') {
+        aVal = a.Id_Item || a.id
+        bVal = b.Id_Item || b.id
+      }
+      
+      // Ordenação alfabética
+      if (sortDirection === 'asc') {
+        return String(aVal || '').localeCompare(String(bVal || ''), 'pt-BR', { numeric: true })
+      } else {
+        return String(bVal || '').localeCompare(String(aVal || ''), 'pt-BR', { numeric: true })
+      }
+    })
+    
+    return sorted
+  }, [transactions, sortField, sortDirection])
+
+  const SortIcon = ({ field }: { field: string }) => {
+    if (sortField !== field) {
+      return <span className="sort-icon-placeholder">↕</span>
+    }
+    return sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
   }
 
   if (loading) {
@@ -147,9 +265,19 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
     <div className="admin-dashboard">
       <div className="admin-header">
         <h2>Dashboard de Administração</h2>
-        <button className="admin-close" onClick={onClose}>
-          <X size={24} />
-        </button>
+        <div className="admin-header-actions">
+          <button className="admin-btn-import" onClick={() => setIsImportModalOpen(true)}>
+            <Upload size={18} />
+            Importar
+          </button>
+          <button className="admin-btn-clear" onClick={handleClearAllData}>
+            <Trash2 size={18} />
+            Limpar {activeTab === 'account-plan' ? 'Plano de Contas' : 'Lançamentos'}
+          </button>
+          <button className="admin-close" onClick={onClose}>
+            <X size={24} />
+          </button>
+        </div>
       </div>
 
       <div className="admin-tabs">
@@ -181,17 +309,29 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>ID_Conta</th>
-                    <th>Natureza</th>
-                    <th>Tipo</th>
-                    <th>Categoria</th>
-                    <th>SubCategoria</th>
-                    <th>Conta</th>
+                    <th className="sortable" onClick={() => handleSort('ID_Conta')}>
+                      ID_Conta <SortIcon field="ID_Conta" />
+                    </th>
+                    <th className="sortable" onClick={() => handleSort('Natureza')}>
+                      Natureza <SortIcon field="Natureza" />
+                    </th>
+                    <th className="sortable" onClick={() => handleSort('Tipo')}>
+                      Tipo <SortIcon field="Tipo" />
+                    </th>
+                    <th className="sortable" onClick={() => handleSort('Categoria')}>
+                      Categoria <SortIcon field="Categoria" />
+                    </th>
+                    <th className="sortable" onClick={() => handleSort('SubCategoria')}>
+                      SubCategoria <SortIcon field="SubCategoria" />
+                    </th>
+                    <th className="sortable" onClick={() => handleSort('Conta')}>
+                      Conta <SortIcon field="Conta" />
+                    </th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {accountPlan.map((account) => (
+                  {sortedAccountPlan.map((account) => (
                     <tr key={String(account.ID_Conta)}>
                       {editingId === account.ID_Conta && editedAccount ? (
                         <>
@@ -287,22 +427,33 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>Data</th>
-                    <th>Descrição</th>
-                    <th>Valor</th>
-                    <th>Tipo</th>
-                    <th>Categoria</th>
-                    <th>Id_Item</th>
+                    <th className="sortable" onClick={() => handleSort('id')}>
+                      ID <SortIcon field="id" />
+                    </th>
+                    <th className="sortable" onClick={() => handleSort('date')}>
+                      Data <SortIcon field="date" />
+                    </th>
+                    <th className="sortable" onClick={() => handleSort('description')}>
+                      Descrição <SortIcon field="description" />
+                    </th>
+                    <th className="sortable" onClick={() => handleSort('amount')}>
+                      Valor <SortIcon field="amount" />
+                    </th>
+                    <th className="sortable" onClick={() => handleSort('type')}>
+                      Tipo <SortIcon field="type" />
+                    </th>
+                    <th className="sortable" onClick={() => handleSort('category')}>
+                      Categoria <SortIcon field="category" />
+                    </th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((transaction) => (
+                  {sortedTransactions.map((transaction) => (
                     <tr key={transaction.id}>
                       {editingId === transaction.id && editedTransaction ? (
                         <>
-                          <td>{transaction.id}</td>
+                          <td>{transaction.Id_Item || transaction.id}</td>
                           <td>
                             <input
                               type="date"
@@ -379,7 +530,7 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                         </>
                       ) : (
                         <>
-                          <td>{transaction.id}</td>
+                          <td>{transaction.Id_Item || transaction.id || '-'}</td>
                           <td>{transaction.date}</td>
                           <td>{transaction.description}</td>
                           <td className={transaction.type === 'income' ? 'positive' : 'negative'}>
@@ -387,7 +538,6 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                           </td>
                           <td>{transaction.type === 'income' ? 'Receita' : 'Despesa'}</td>
                           <td>{transaction.category}</td>
-                          <td>{transaction.Id_Item || '-'}</td>
                           <td>
                             <button className="btn-edit" onClick={() => handleEditTransaction(transaction)}>
                               <Edit2 size={16} />
@@ -406,6 +556,12 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
           </div>
         )}
       </div>
+
+      <ImportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onSuccess={handleImportSuccess}
+      />
     </div>
   )
 }

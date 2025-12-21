@@ -43,16 +43,49 @@ export const createTransaction = async (transaction: Omit<Transaction, 'id'>): P
 }
 
 export const clearAllData = async (): Promise<void> => {
+  console.log('Chamando clearAllData...')
   const response = await fetch(`${API_BASE_URL}/transactions/all`, {
     method: 'DELETE',
   })
   
+  console.log('Resposta recebida:', response.status, response.statusText)
+  
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`)
+    let errorMessage = `HTTP error! status: ${response.status}`
+    try {
+      const errorData = await response.json()
+      errorMessage = errorData.error || errorData.message || errorMessage
+      console.error('Erro do servidor:', errorData)
+    } catch (e) {
+      const text = await response.text()
+      console.error('Resposta de erro (texto):', text)
+      errorMessage = text || errorMessage
+    }
+    throw new Error(errorMessage)
+  }
+  
+  // Tentar parsear resposta de sucesso
+  try {
+    const result = await response.json()
+    console.log('Dados limpos com sucesso:', result)
+  } catch (e) {
+    // Se não houver JSON, tudo bem
+    console.log('Resposta sem JSON, mas status OK')
   }
 }
 
-export const updateTransaction = async (id: number, transaction: Partial<Transaction>): Promise<Transaction> => {
+export const clearAccountPlan = async (): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/account-plan/all`, {
+    method: 'DELETE',
+  })
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Erro desconhecido' }))
+    throw new Error(error.error || `HTTP error! status: ${response.status}`)
+  }
+}
+
+export const updateTransaction = async (id: number | string, transaction: Partial<Transaction>): Promise<Transaction> => {
   const response = await fetch(`${API_BASE_URL}/transactions/${id}`, {
     method: 'PUT',
     headers: {
@@ -62,19 +95,21 @@ export const updateTransaction = async (id: number, transaction: Partial<Transac
   })
   
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`)
+    const error = await response.json().catch(() => ({ error: 'Erro desconhecido' }))
+    throw new Error(error.error || `HTTP error! status: ${response.status}`)
   }
   
   return response.json()
 }
 
-export const deleteTransaction = async (id: number): Promise<void> => {
+export const deleteTransaction = async (id: number | string): Promise<void> => {
   const response = await fetch(`${API_BASE_URL}/transactions/${id}`, {
     method: 'DELETE',
   })
   
   if (!response.ok) {
-    throw new Error(`HTTP error! status: ${response.status}`)
+    const error = await response.json().catch(() => ({ error: 'Erro desconhecido' }))
+    throw new Error(error.error || `HTTP error! status: ${response.status}`)
   }
 }
 

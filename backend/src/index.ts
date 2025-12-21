@@ -25,7 +25,7 @@ interface AccountPlan {
 }
 
 interface Transaction {
-  id: number
+  id: number | string  // Pode ser número ou string (Id_Item)
   date: string
   description: string
   amount: number
@@ -220,11 +220,23 @@ app.post('/api/transactions', (req: Request, res: Response) => {
   res.status(201).json(transaction)
 })
 
+// IMPORTANTE: Rotas específicas devem vir ANTES das rotas com parâmetros
+app.delete('/api/transactions/all', (req: Request, res: Response) => {
+  console.log('Limpando todas as transações...')
+  const count = transactions.length
+  transactions = []
+  nextId = 1
+  console.log(`${count} transações foram limpas`)
+  res.json({ message: 'Todos os dados foram limpos', count })
+})
+
 app.put('/api/transactions/:id', (req: Request, res: Response) => {
-  const id = parseInt(req.params.id)
+  const idParam = req.params.id
+  // Tentar converter para número, mas aceitar string também
+  const id = isNaN(Number(idParam)) ? idParam : parseInt(idParam)
   const { date, description, amount, type, category } = req.body
   
-  const index = transactions.findIndex(t => t.id === id)
+  const index = transactions.findIndex(t => String(t.id) === String(id))
   if (index === -1) {
     return res.status(404).json({ error: 'Transação não encontrada' })
   }
@@ -242,8 +254,10 @@ app.put('/api/transactions/:id', (req: Request, res: Response) => {
 })
 
 app.delete('/api/transactions/:id', (req: Request, res: Response) => {
-  const id = parseInt(req.params.id)
-  const index = transactions.findIndex(t => t.id === id)
+  const idParam = req.params.id
+  // Tentar converter para número, mas aceitar string também
+  const id = isNaN(Number(idParam)) ? idParam : parseInt(idParam)
+  const index = transactions.findIndex(t => String(t.id) === String(id))
   
   if (index === -1) {
     return res.status(404).json({ error: 'Transação não encontrada' })
@@ -251,12 +265,6 @@ app.delete('/api/transactions/:id', (req: Request, res: Response) => {
   
   transactions.splice(index, 1)
   res.json({ message: 'Transação excluída com sucesso' })
-})
-
-app.delete('/api/transactions/all', (req: Request, res: Response) => {
-  transactions = []
-  nextId = 1
-  res.json({ message: 'Todos os dados foram limpos' })
 })
 
 // Função para validar se Id_Item existe no plano de contas
@@ -425,8 +433,13 @@ app.post('/api/transactions/import', (req: Request, res: Response) => {
       category = normalizeString(account.Categoria || category)
     }
     
+    // Usar Id_Item como ID se disponível, senão gerar novo ID numérico
+    // Mas manter Id_Item como campo separado para referência ao plano de contas
+    const hasIdItem = t.Id_Item !== undefined && t.Id_Item !== null && String(t.Id_Item).trim() !== ''
+    const transactionId = hasIdItem ? normalizeString(t.Id_Item) : nextId++
+    
     const transaction: Transaction = {
-      id: nextId++,
+      id: transactionId,
       date,
       description,
       amount: type === 'expense' ? -Math.abs(valor) : Math.abs(valor),

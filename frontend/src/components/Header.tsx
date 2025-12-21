@@ -3,12 +3,10 @@ import './Header.css'
 
 interface HeaderProps {
   onNewTransaction: () => void
-  onImport: () => void
-  onClearData: () => void
   onAdminMode: () => void
 }
 
-const Header = ({ onNewTransaction, onImport, onClearData, onAdminMode }: HeaderProps) => {
+const Header = ({ onNewTransaction, onAdminMode }: HeaderProps) => {
   return (
     <header className="header">
       <div className="header-content">
@@ -21,14 +19,6 @@ const Header = ({ onNewTransaction, onImport, onClearData, onAdminMode }: Header
             <button className="action-button primary" onClick={onNewTransaction} title="Nova Transação">
               <Plus size={18} />
               <span>Nova Transação</span>
-            </button>
-            <button className="action-button" onClick={onImport} title="Importar Planilha">
-              <Upload size={18} />
-              <span>Importar</span>
-            </button>
-            <button className="action-button danger" onClick={onClearData} title="Limpar Todos os Dados">
-              <Trash2 size={18} />
-              <span>Limpar</span>
             </button>
           </div>
           <div className="search-box">
