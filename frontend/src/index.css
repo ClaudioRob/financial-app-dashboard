@@ -17,6 +17,7 @@
   --bg-secondary: #1e293b;
   --bg-card: #1e293b;
   --bg-hover: #334155;
+  --bg-tertiary: #273549;
   
   /* Texto */
   --text-primary: #f1f5f9;
@@ -25,7 +26,11 @@
   
   /* Bordas */
   --border: #334155;
+  --border-color: #334155;
   --border-light: #475569;
+  
+  /* Cores primárias (aliases) */
+  --primary-color: #6366f1;
   
   /* Status */
   --success: #10b981;

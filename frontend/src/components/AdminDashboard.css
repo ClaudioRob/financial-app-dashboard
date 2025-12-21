@@ -1,0 +1,252 @@
+.admin-dashboard {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  padding: 2rem;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.admin-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 24px;
+}
+
+.admin-close {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.admin-tab {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.admin-tab:hover {
+  color: var(--text-primary);
+}
+
+.admin-tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.admin-content {
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.admin-table-container {
+  width: 100%;
+}
+
+.admin-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.admin-table-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 18px;
+}
+
+.btn-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.admin-table-wrapper {
+  overflow-x: auto;
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-secondary);
+}
+
+.admin-table thead {
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 10;
+}
+
+.admin-table th {
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border-color);
+  background: var(--bg-tertiary);
+  white-space: nowrap;
+}
+
+.admin-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.admin-table tbody tr:hover {
+  background: var(--bg-tertiary);
+}
+
+.admin-table tbody tr:hover td {
+  color: var(--text-primary);
+}
+
+.admin-input {
+  width: 100%;
+  padding: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.admin-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+}
+
+.btn-edit,
+.btn-delete,
+.btn-save,
+.btn-cancel {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  margin: 0 4px;
+}
+
+.btn-edit {
+  color: var(--primary-color);
+}
+
+.btn-edit:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.btn-delete {
+  color: #ef4444;
+}
+
+.btn-delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.btn-save {
+  color: #22c55e;
+}
+
+.btn-save:hover {
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.btn-cancel {
+  color: var(--text-secondary);
+}
+
+.btn-cancel:hover {
+  background: var(--bg-tertiary);
+}
+
+.admin-table td.positive {
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.admin-table td.negative {
+  color: #ef4444;
+  font-weight: 500;
+}
+
+.loading-admin {
+  text-align: center;
+  padding: 4rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .admin-dashboard {
+    padding: 1rem;
+  }
+
+  .admin-table-wrapper {
+    max-height: calc(100vh - 200px);
+  }
+
+  .admin-table {
+    font-size: 12px;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: 8px;
+  }
+}

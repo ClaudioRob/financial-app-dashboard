@@ -6,6 +6,7 @@ import ChartsSection from './components/ChartsSection'
 import RecentTransactions from './components/RecentTransactions'
 import TransactionModal from './components/TransactionModal'
 import ImportModal from './components/ImportModal'
+import AdminDashboard from './components/AdminDashboard'
 import { fetchDashboardData, clearAllData } from './services/api'
 
 export interface DashboardData {
@@ -35,6 +36,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
+  const [isAdminMode, setIsAdminMode] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -98,12 +100,21 @@ function App() {
     return null
   }
 
+  if (isAdminMode) {
+    return (
+      <div className="app">
+        <AdminDashboard onClose={() => setIsAdminMode(false)} />
+      </div>
+    )
+  }
+
   return (
     <div className="app">
       <Header
         onNewTransaction={() => setIsTransactionModalOpen(true)}
         onImport={() => setIsImportModalOpen(true)}
         onClearData={handleClearData}
+        onAdminMode={() => setIsAdminMode(true)}
       />
       <main className="main-content">
         <StatsCards balance={data.balance} />

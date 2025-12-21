@@ -52,13 +52,13 @@ export const clearAllData = async (): Promise<void> => {
   }
 }
 
-export const importTransactions = async (transactions: Omit<Transaction, 'id'>[]): Promise<{ message: string; transactions: Transaction[] }> => {
-  const response = await fetch(`${API_BASE_URL}/transactions/import`, {
-    method: 'POST',
+export const updateTransaction = async (id: number, transaction: Partial<Transaction>): Promise<Transaction> => {
+  const response = await fetch(`${API_BASE_URL}/transactions/${id}`, {
+    method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ transactions }),
+    body: JSON.stringify(transaction),
   })
   
   if (!response.ok) {
@@ -66,6 +66,86 @@ export const importTransactions = async (transactions: Omit<Transaction, 'id'>[]
   }
   
   return response.json()
+}
+
+export const deleteTransaction = async (id: number): Promise<void> => {
+  const response = await fetch(`${API_BASE_URL}/transactions/${id}`, {
+    method: 'DELETE',
+  })
+  
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+}
+
+export interface AccountPlan {
+  ID_Conta: number | string
+  Natureza: string
+  Tipo: string
+  Categoria: string
+  SubCategoria: string
+  Conta: string
+}
+
+export const importAccountPlan = async (accountPlan: AccountPlan[]): Promise<{ message: string; count: number }> => {
+  const response = await fetch(`${API_BASE_URL}/account-plan/import`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ accountPlan }),
+  })
+  
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.error || `HTTP error! status: ${response.status}`)
+  }
+  
+  return response.json()
+}
+
+export const fetchAccountPlan = async (): Promise<AccountPlan[]> => {
+  const response = await fetch(`${API_BASE_URL}/account-plan`)
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`)
+  }
+  return response.json()
+}
+
+export const importTransactions = async (
+  transactions: any[], 
+  validateAccountPlan: boolean = true
+): Promise<{ message: string; transactions: Transaction[]; errors?: string[] }> => {
+  console.log('Enviando para API:', { 
+    transactionsCount: transactions.length, 
+    validateAccountPlan 
+  })
+  
+  const response = await fetch(`${API_BASE_URL}/transactions/import`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ transactions, validateAccountPlan }),
+  })
+  
+  const responseData = await response.json()
+  
+  if (!response.ok) {
+    console.error('Erro na resposta da API:', responseData)
+    // Se tem erros detalhados, incluir na mensagem
+    if (responseData.errors) {
+      const errorMsg = JSON.stringify({ 
+        error: responseData.error || `HTTP error! status: ${response.status}`,
+        errors: responseData.errors 
+      })
+      throw new Error(errorMsg)
+    }
+    throw new Error(responseData.error || `HTTP error! status: ${response.status}`)
+  }
+  
+  console.log('Resposta da API:', responseData)
+  return responseData
 }
 
 const getMockData = (): DashboardData => {

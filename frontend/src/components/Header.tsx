@@ -5,9 +5,10 @@ interface HeaderProps {
   onNewTransaction: () => void
   onImport: () => void
   onClearData: () => void
+  onAdminMode: () => void
 }
 
-const Header = ({ onNewTransaction, onImport, onClearData }: HeaderProps) => {
+const Header = ({ onNewTransaction, onImport, onClearData, onAdminMode }: HeaderProps) => {
   return (
     <header className="header">
       <div className="header-content">
@@ -38,7 +39,7 @@ const Header = ({ onNewTransaction, onImport, onClearData }: HeaderProps) => {
             <Bell size={20} />
             <span className="badge">3</span>
           </button>
-          <button className="icon-button">
+          <button className="icon-button" onClick={onAdminMode} title="Modo Administração">
             <Settings size={20} />
           </button>
           <div className="user-avatar">
