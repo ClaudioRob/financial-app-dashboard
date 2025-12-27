@@ -1,4 +1,4 @@
-# Fundify Dashboard
+# Financial App Dashboard
 
 Modern Financial Dashboard inspirado no design do [Fundify](https://dribbble.com/shots/26479102-Fundify-Modern-Financial-Dashboard-Design).
 
