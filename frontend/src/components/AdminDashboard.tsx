@@ -21,8 +21,20 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
   const [editedAccount, setEditedAccount] = useState<AccountPlan | null>(null)
   const [editedTransaction, setEditedTransaction] = useState<any>(null)
   const [isImportModalOpen, setIsImportModalOpen] = useState(false)
-  const [sortField, setSortField] = useState<SortField | null>(null)
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null)
+  
+  // Estados para ordenação e filtros do Plano de Contas
+  const [accountSortField, setAccountSortField] = useState<SortField | null>(null)
+  const [accountSortDirection, setAccountSortDirection] = useState<SortDirection>(null)
+  
+  // Estados para ordenação de Lançamentos
+  const [transactionSortField, setTransactionSortField] = useState<SortField | null>(null)
+  const [transactionSortDirection, setTransactionSortDirection] = useState<SortDirection>(null)
+  
+  // Estados para filtros globais (combo box com coluna específica)
+  const [accountFilterColumn, setAccountFilterColumn] = useState<string>('')
+  const [accountFilterValue, setAccountFilterValue] = useState<string>('')
+  const [transactionFilterColumn, setTransactionFilterColumn] = useState<string>('')
+  const [transactionFilterValue, setTransactionFilterValue] = useState<string>('')
 
   useEffect(() => {
     loadData()
@@ -98,6 +110,30 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
     setEditedAccount({ ...newAccount })
   }
 
+  const handleAddTransaction = () => {
+    const newTransaction = {
+      id: `NEW_${Date.now()}`,
+      Id_Item: '',
+      Natureza: '',
+      Tipo: '',
+      Categoria: '',
+      SubCategoria: '',
+      Operação: '',
+      OrigemDestino: '',
+      Item: '',
+      Data: new Date().toISOString().split('T')[0],
+      Valor: 0,
+      date: new Date().toISOString().split('T')[0],
+      description: '',
+      amount: 0,
+      type: 'expense' as 'income' | 'expense',
+      category: ''
+    }
+    setTransactions([newTransaction, ...transactions])
+    setEditingId(newTransaction.id)
+    setEditedTransaction({ ...newTransaction })
+  }
+
   const handleEditTransaction = (transaction: any) => {
     setEditingId(transaction.id)
     setEditedTransaction({ ...transaction })
@@ -107,19 +143,56 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
     if (!editedTransaction) return
 
     try {
-      // Converter ID para string se necessário para a API
-      const transactionId = typeof editedTransaction.id === 'string' 
-        ? editedTransaction.id 
-        : String(editedTransaction.id)
-      await updateTransaction(transactionId as any, editedTransaction)
-      const updated = transactions.map(t => 
-        t.id === editedTransaction.id ? editedTransaction : t
-      )
-      setTransactions(updated)
+      const isNewTransaction = String(editedTransaction.id).startsWith('NEW_')
+      
+      if (isNewTransaction) {
+        // Criar nova transação via API
+        const response = await fetch('http://localhost:3001/api/transactions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: editedTransaction.Data || editedTransaction.date,
+            description: editedTransaction.Item || editedTransaction.description,
+            amount: editedTransaction.Valor || editedTransaction.amount,
+            type: editedTransaction.Natureza?.toLowerCase().includes('receita') ? 'income' : 'expense',
+            category: editedTransaction.Categoria || editedTransaction.category,
+            Id_Item: editedTransaction.Id_Item,
+            Natureza: editedTransaction.Natureza,
+            Tipo: editedTransaction.Tipo,
+            SubCategoria: editedTransaction.SubCategoria,
+            Operação: editedTransaction.Operação,
+            OrigemDestino: editedTransaction.OrigemDestino,
+            Item: editedTransaction.Item,
+            Data: editedTransaction.Data,
+            Valor: editedTransaction.Valor
+          })
+        })
+        
+        if (!response.ok) throw new Error('Erro ao criar transação')
+        
+        const result = await response.json()
+        
+        // Atualizar lista removendo a temporária e adicionando a nova
+        const updated = transactions.filter(t => t.id !== editedTransaction.id)
+        setTransactions([result.transaction, ...updated])
+        
+        alert('Transação criada com sucesso!')
+      } else {
+        // Atualizar transação existente
+        const transactionId = typeof editedTransaction.id === 'string' 
+          ? editedTransaction.id 
+          : String(editedTransaction.id)
+        await updateTransaction(transactionId as any, editedTransaction)
+        const updated = transactions.map(t => 
+          t.id === editedTransaction.id ? editedTransaction : t
+        )
+        setTransactions(updated)
+        
+        alert('Transação atualizada com sucesso!')
+      }
       
       setEditingId(null)
       setEditedTransaction(null)
-      alert('Transação atualizada com sucesso!')
     } catch (err) {
       console.error('Erro ao salvar transação:', err)
       alert('Erro ao salvar transação')
@@ -169,31 +242,44 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
     loadData()
   }
 
-  const handleSort = (field: string) => {
-    if (sortField === field) {
-      // Alternar direção: null -> asc -> desc -> null
-      if (sortDirection === 'asc') {
-        setSortDirection('desc')
-      } else if (sortDirection === 'desc') {
-        setSortField(null)
-        setSortDirection(null)
-      } else {
-        setSortDirection('asc')
+  const handleAccountSort = (field: string) => {
+    if (accountSortField === field) {
+      // Alternar direção: asc -> desc -> null
+      if (accountSortDirection === 'asc') {
+        setAccountSortDirection('desc')
+      } else if (accountSortDirection === 'desc') {
+        setAccountSortField(null)
+        setAccountSortDirection(null)
       }
     } else {
-      setSortField(field)
-      setSortDirection('asc')
+      setAccountSortField(field)
+      setAccountSortDirection('asc')
+    }
+  }
+
+  const handleTransactionSort = (field: string) => {
+    if (transactionSortField === field) {
+      // Alternar direção: asc -> desc -> null
+      if (transactionSortDirection === 'asc') {
+        setTransactionSortDirection('desc')
+      } else if (transactionSortDirection === 'desc') {
+        setTransactionSortField(null)
+        setTransactionSortDirection(null)
+      }
+    } else {
+      setTransactionSortField(field)
+      setTransactionSortDirection('asc')
     }
   }
 
   const sortedAccountPlan = useMemo(() => {
-    if (!sortField || !sortDirection) return accountPlan
+    if (!accountSortField || !accountSortDirection) return accountPlan
     
     const sorted = [...accountPlan].sort((a, b) => {
-      const aVal = a[sortField as keyof AccountPlan] || ''
-      const bVal = b[sortField as keyof AccountPlan] || ''
+      const aVal = a[accountSortField as keyof AccountPlan] || ''
+      const bVal = b[accountSortField as keyof AccountPlan] || ''
       
-      if (sortDirection === 'asc') {
+      if (accountSortDirection === 'asc') {
         return String(aVal).localeCompare(String(bVal), 'pt-BR', { numeric: true })
       } else {
         return String(bVal).localeCompare(String(aVal), 'pt-BR', { numeric: true })
@@ -201,36 +287,56 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
     })
     
     return sorted
-  }, [accountPlan, sortField, sortDirection])
+  }, [accountPlan, accountSortField, accountSortDirection])
+
+  // Filtrar plano de contas
+  const filteredAccountPlan = useMemo(() => {
+    let filtered = sortedAccountPlan
+    
+    // Filtro por coluna específica
+    if (accountFilterColumn && accountFilterValue) {
+      filtered = filtered.filter((account) => {
+        const columnValue = String(account[accountFilterColumn as keyof AccountPlan] || '').toLowerCase()
+        return columnValue.includes(accountFilterValue.toLowerCase())
+      })
+    }
+    
+    return filtered
+  }, [sortedAccountPlan, accountFilterColumn, accountFilterValue])
 
   const sortedTransactions = useMemo(() => {
-    if (!sortField || !sortDirection) return transactions
+    let filtered = transactions
     
-    const sorted = [...transactions].sort((a, b) => {
-      let aVal: any = a[sortField]
-      let bVal: any = b[sortField]
+    // Filtro por coluna específica
+    if (transactionFilterColumn && transactionFilterValue) {
+      filtered = filtered.filter((transaction: any) => {
+        const columnValue = String(transaction[transactionFilterColumn] || '').toLowerCase()
+        return columnValue.includes(transactionFilterValue.toLowerCase())
+      })
+    }
+    
+    if (!transactionSortField || !transactionSortDirection) return filtered
+    
+    const sorted = [...transactions].sort((a: any, b: any) => {
+      let aVal: any = a[transactionSortField]
+      let bVal: any = b[transactionSortField]
       
-      // Tratamento especial para campos numéricos e datas
-      if (sortField === 'amount') {
-        aVal = Math.abs(aVal || 0)
-        bVal = Math.abs(bVal || 0)
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
+      // Tratamento especial para Valor
+      if (transactionSortField === 'Valor') {
+        aVal = Math.abs(a.Valor || a.amount || 0)
+        bVal = Math.abs(b.Valor || b.amount || 0)
+        return transactionSortDirection === 'asc' ? aVal - bVal : bVal - aVal
       }
       
-      if (sortField === 'date') {
-        aVal = new Date(aVal || 0).getTime()
-        bVal = new Date(bVal || 0).getTime()
-        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal
+      // Tratamento especial para Data
+      if (transactionSortField === 'Data') {
+        aVal = new Date(a.Data || a.date || 0).getTime()
+        bVal = new Date(b.Data || b.date || 0).getTime()
+        return transactionSortDirection === 'asc' ? aVal - bVal : bVal - aVal
       }
       
-      // Para Id_Item, usar o valor do campo Id_Item ou o id como fallback
-      if (sortField === 'Id_Item') {
-        aVal = a.Id_Item || a.id
-        bVal = b.Id_Item || b.id
-      }
-      
-      // Ordenação alfabética
-      if (sortDirection === 'asc') {
+      // Ordenação alfabética para outros campos
+      if (transactionSortDirection === 'asc') {
         return String(aVal || '').localeCompare(String(bVal || ''), 'pt-BR', { numeric: true })
       } else {
         return String(bVal || '').localeCompare(String(aVal || ''), 'pt-BR', { numeric: true })
@@ -238,13 +344,20 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
     })
     
     return sorted
-  }, [transactions, sortField, sortDirection])
+  }, [transactions, transactionSortField, transactionSortDirection, transactionFilterColumn, transactionFilterValue])
 
-  const SortIcon = ({ field }: { field: string }) => {
-    if (sortField !== field) {
+  const AccountSortIcon = ({ field }: { field: string }) => {
+    if (accountSortField !== field) {
       return <span className="sort-icon-placeholder">↕</span>
     }
-    return sortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+    return accountSortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
+  }
+
+  const TransactionSortIcon = ({ field }: { field: string }) => {
+    if (transactionSortField !== field) {
+      return <span className="sort-icon-placeholder">↕</span>
+    }
+    return transactionSortDirection === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />
   }
 
   if (loading) {
@@ -300,38 +413,65 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
           <div className="admin-table-container">
             <div className="admin-table-header">
               <h3>Plano de Contas</h3>
-              <button className="btn-add" onClick={handleAddAccount}>
-                <Plus size={18} />
-                Adicionar Conta
-              </button>
+              <div className="admin-table-actions">
+                <select
+                  value={accountFilterColumn}
+                  onChange={(e) => {
+                    setAccountFilterColumn(e.target.value)
+                    setAccountFilterValue('')
+                  }}
+                  className="filter-select"
+                >
+                  <option value="">Filtrar por coluna...</option>
+                  <option value="ID_Conta">ID_Conta</option>
+                  <option value="Natureza">Natureza</option>
+                  <option value="Tipo">Tipo</option>
+                  <option value="Categoria">Categoria</option>
+                  <option value="SubCategoria">SubCategoria</option>
+                  <option value="Conta">Conta</option>
+                </select>
+                {accountFilterColumn && (
+                  <input
+                    type="text"
+                    placeholder="Digite o valor..."
+                    value={accountFilterValue}
+                    onChange={(e) => setAccountFilterValue(e.target.value)}
+                    className="filter-input-header"
+                  />
+                )}
+                <button className="btn-add" onClick={handleAddAccount}>
+                  <Plus size={18} />
+                  Adicionar Conta
+                </button>
+              </div>
             </div>
             <div className="admin-table-wrapper">
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th className="sortable" onClick={() => handleSort('ID_Conta')}>
-                      ID_Conta <SortIcon field="ID_Conta" />
+                    <th className="sortable" onClick={() => handleAccountSort('ID_Conta')}>
+                      ID_Conta <AccountSortIcon field="ID_Conta" />
                     </th>
-                    <th className="sortable" onClick={() => handleSort('Natureza')}>
-                      Natureza <SortIcon field="Natureza" />
+                    <th className="sortable" onClick={() => handleAccountSort('Natureza')}>
+                      Natureza <AccountSortIcon field="Natureza" />
                     </th>
-                    <th className="sortable" onClick={() => handleSort('Tipo')}>
-                      Tipo <SortIcon field="Tipo" />
+                    <th className="sortable" onClick={() => handleAccountSort('Tipo')}>
+                      Tipo <AccountSortIcon field="Tipo" />
                     </th>
-                    <th className="sortable" onClick={() => handleSort('Categoria')}>
-                      Categoria <SortIcon field="Categoria" />
+                    <th className="sortable" onClick={() => handleAccountSort('Categoria')}>
+                      Categoria <AccountSortIcon field="Categoria" />
                     </th>
-                    <th className="sortable" onClick={() => handleSort('SubCategoria')}>
-                      SubCategoria <SortIcon field="SubCategoria" />
+                    <th className="sortable" onClick={() => handleAccountSort('SubCategoria')}>
+                      SubCategoria <AccountSortIcon field="SubCategoria" />
                     </th>
-                    <th className="sortable" onClick={() => handleSort('Conta')}>
-                      Conta <SortIcon field="Conta" />
+                    <th className="sortable" onClick={() => handleAccountSort('Conta')}>
+                      Conta <AccountSortIcon field="Conta" />
                     </th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedAccountPlan.map((account) => (
+                  {filteredAccountPlan.map((account) => (
                     <tr key={String(account.ID_Conta)}>
                       {editingId === account.ID_Conta && editedAccount ? (
                         <>
@@ -422,51 +562,139 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
           <div className="admin-table-container">
             <div className="admin-table-header">
               <h3>Lançamentos</h3>
+              <div className="admin-table-actions">
+                <select
+                  value={transactionFilterColumn}
+                  onChange={(e) => {
+                    setTransactionFilterColumn(e.target.value)
+                    setTransactionFilterValue('')
+                  }}
+                  className="filter-select"
+                >
+                  <option value="">Filtrar por coluna...</option>
+                  <option value="Id_Item">Id_Item</option>
+                  <option value="Natureza">Natureza</option>
+                  <option value="Tipo">Tipo</option>
+                  <option value="Categoria">Categoria</option>
+                  <option value="SubCategoria">SubCategoria</option>
+                  <option value="Operação">Operação</option>
+                  <option value="OrigemDestino">Origem|Destino</option>
+                  <option value="Item">Item</option>
+                  <option value="Data">Data</option>
+                  <option value="Valor">Valor</option>
+                </select>
+                {transactionFilterColumn && (
+                  <input
+                    type="text"
+                    placeholder="Digite o valor..."
+                    value={transactionFilterValue}
+                    onChange={(e) => setTransactionFilterValue(e.target.value)}
+                    className="filter-input-header"
+                  />
+                )}
+                <button className="btn-add" onClick={handleAddTransaction}>
+                  <Plus size={18} />
+                  Adicionar Lançamento
+                </button>
+              </div>
             </div>
             <div className="admin-table-wrapper">
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th className="sortable" onClick={() => handleSort('id')}>
-                      ID <SortIcon field="id" />
+                    <th className="sortable" onClick={() => handleTransactionSort('Id_Item')}>
+                      Id_Item <TransactionSortIcon field="Id_Item" />
                     </th>
-                    <th className="sortable" onClick={() => handleSort('date')}>
-                      Data <SortIcon field="date" />
+                    <th>Natureza</th>
+                    <th>Tipo</th>
+                    <th>Categoria</th>
+                    <th>SubCategoria</th>
+                    <th>Operação</th>
+                    <th>Origem|Destino</th>
+                    <th className="sortable" onClick={() => handleTransactionSort('Item')}>
+                      Item <TransactionSortIcon field="Item" />
                     </th>
-                    <th className="sortable" onClick={() => handleSort('description')}>
-                      Descrição <SortIcon field="description" />
+                    <th className="sortable" onClick={() => handleTransactionSort('Data')}>
+                      Data <TransactionSortIcon field="Data" />
                     </th>
-                    <th className="sortable" onClick={() => handleSort('amount')}>
-                      Valor <SortIcon field="amount" />
-                    </th>
-                    <th className="sortable" onClick={() => handleSort('type')}>
-                      Tipo <SortIcon field="type" />
-                    </th>
-                    <th className="sortable" onClick={() => handleSort('category')}>
-                      Categoria <SortIcon field="category" />
-                    </th>
+                    <th>Valor</th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedTransactions.map((transaction) => (
+                  {sortedTransactions.map((transaction: any) => (
                     <tr key={transaction.id}>
                       {editingId === transaction.id && editedTransaction ? (
                         <>
-                          <td>{transaction.Id_Item || transaction.id}</td>
                           <td>
                             <input
-                              type="date"
-                              value={editedTransaction.date}
-                              onChange={(e) => setEditedTransaction({ ...editedTransaction, date: e.target.value })}
+                              type="text"
+                              value={editedTransaction.Id_Item || ''}
+                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Id_Item: e.target.value })}
                               className="admin-input"
                             />
                           </td>
                           <td>
                             <input
                               type="text"
-                              value={editedTransaction.description}
-                              onChange={(e) => setEditedTransaction({ ...editedTransaction, description: e.target.value })}
+                              value={editedTransaction.Natureza || ''}
+                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Natureza: e.target.value })}
+                              className="admin-input"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              value={editedTransaction.Tipo || ''}
+                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Tipo: e.target.value })}
+                              className="admin-input"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              value={editedTransaction.Categoria || ''}
+                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Categoria: e.target.value })}
+                              className="admin-input"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              value={editedTransaction.SubCategoria || ''}
+                              onChange={(e) => setEditedTransaction({ ...editedTransaction, SubCategoria: e.target.value })}
+                              className="admin-input"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              value={editedTransaction.Operação || ''}
+                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Operação: e.target.value })}
+                              className="admin-input"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              value={editedTransaction.OrigemDestino || ''}
+                              onChange={(e) => setEditedTransaction({ ...editedTransaction, OrigemDestino: e.target.value })}
+                              className="admin-input"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              value={editedTransaction.Item || ''}
+                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Item: e.target.value })}
+                              className="admin-input"
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="date"
+                              value={editedTransaction.Data || editedTransaction.date || ''}
+                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Data: e.target.value, date: e.target.value })}
                               className="admin-input"
                             />
                           </td>
@@ -474,48 +702,11 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                             <input
                               type="number"
                               step="0.01"
-                              value={Math.abs(editedTransaction.amount)}
+                              value={editedTransaction.Valor || Math.abs(editedTransaction.amount || 0)}
                               onChange={(e) => {
                                 const val = parseFloat(e.target.value) || 0
-                                setEditedTransaction({ 
-                                  ...editedTransaction, 
-                                  amount: editedTransaction.type === 'expense' ? -val : val 
-                                })
+                                setEditedTransaction({ ...editedTransaction, Valor: val, amount: val })
                               }}
-                              className="admin-input"
-                            />
-                          </td>
-                          <td>
-                            <select
-                              value={editedTransaction.type}
-                              onChange={(e) => {
-                                const type = e.target.value as 'income' | 'expense'
-                                const amount = Math.abs(editedTransaction.amount)
-                                setEditedTransaction({ 
-                                  ...editedTransaction, 
-                                  type,
-                                  amount: type === 'expense' ? -amount : amount
-                                })
-                              }}
-                              className="admin-input"
-                            >
-                              <option value="income">Receita</option>
-                              <option value="expense">Despesa</option>
-                            </select>
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              value={editedTransaction.category}
-                              onChange={(e) => setEditedTransaction({ ...editedTransaction, category: e.target.value })}
-                              className="admin-input"
-                            />
-                          </td>
-                          <td>
-                            <input
-                              type="text"
-                              value={editedTransaction.Id_Item || ''}
-                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Id_Item: e.target.value })}
                               className="admin-input"
                             />
                           </td>
@@ -530,14 +721,18 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                         </>
                       ) : (
                         <>
-                          <td>{transaction.Id_Item || transaction.id || '-'}</td>
-                          <td>{transaction.date}</td>
-                          <td>{transaction.description}</td>
-                          <td className={transaction.type === 'income' ? 'positive' : 'negative'}>
-                            {transaction.type === 'income' ? '+' : '-'} R$ {Math.abs(transaction.amount).toFixed(2)}
+                          <td>{transaction.Id_Item || '-'}</td>
+                          <td>{transaction.Natureza || '-'}</td>
+                          <td>{transaction.Tipo || '-'}</td>
+                          <td>{transaction.Categoria || '-'}</td>
+                          <td>{transaction.SubCategoria || '-'}</td>
+                          <td>{transaction.Operação || '-'}</td>
+                          <td>{transaction.OrigemDestino || '-'}</td>
+                          <td>{transaction.Item || '-'}</td>
+                          <td>{transaction.Data || transaction.date || '-'}</td>
+                          <td className={transaction.Natureza?.toLowerCase().includes('receita') ? 'positive' : 'negative'}>
+                            R$ {Math.abs(transaction.Valor || transaction.amount || 0).toFixed(2)}
                           </td>
-                          <td>{transaction.type === 'income' ? 'Receita' : 'Despesa'}</td>
-                          <td>{transaction.category}</td>
                           <td>
                             <button className="btn-edit" onClick={() => handleEditTransaction(transaction)}>
                               <Edit2 size={16} />

@@ -33,3 +33,6 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Data persistence
+data/
+backend/data/

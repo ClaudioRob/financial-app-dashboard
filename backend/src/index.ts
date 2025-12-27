@@ -1,5 +1,7 @@
 import express, { Request, Response } from 'express'
 import cors from 'cors'
+import fs from 'fs'
+import path from 'path'
 
 const app = express()
 const PORT = 3001
@@ -13,6 +15,78 @@ app.use((req, res, next) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
   next()
 })
+
+// Configurar persistência de dados em arquivos JSON
+const DATA_DIR = path.join(process.cwd(), 'data')
+const TRANSACTIONS_FILE = path.join(DATA_DIR, 'transactions.json')
+const ACCOUNT_PLAN_FILE = path.join(DATA_DIR, 'account-plan.json')
+
+// Criar diretório de dados se não existir
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true })
+  console.log(`📁 Diretório de dados criado: ${DATA_DIR}`)
+}
+
+// Funções para persistência
+const saveTransactions = (transactionsData: Transaction[], nextIdValue: number) => {
+  try {
+    const data = { transactions: transactionsData, nextId: nextIdValue }
+    fs.writeFileSync(TRANSACTIONS_FILE, JSON.stringify(data, null, 2), 'utf-8')
+    console.log(`💾 Transações salvas (${transactionsData.length} registros)`)
+  } catch (error) {
+    console.error('❌ Erro ao salvar transações:', error)
+  }
+}
+
+const loadTransactions = (): { transactions: Transaction[]; nextId: number } => {
+  try {
+    if (fs.existsSync(TRANSACTIONS_FILE)) {
+      const fileContent = fs.readFileSync(TRANSACTIONS_FILE, 'utf-8')
+      const data = JSON.parse(fileContent)
+      console.log(`📂 Transações carregadas do arquivo (${data.transactions?.length || 0} registros)`)
+      return {
+        transactions: data.transactions || [],
+        nextId: data.nextId || 1
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar transações:', error)
+  }
+  
+  // Retornar dados padrão se arquivo não existir ou erro ao ler
+  return { transactions: [], nextId: 1 }
+}
+
+const saveAccountPlan = (planData: Map<number | string, AccountPlan>) => {
+  try {
+    const planArray = Array.from(planData.values())
+    fs.writeFileSync(ACCOUNT_PLAN_FILE, JSON.stringify(planArray, null, 2), 'utf-8')
+    console.log(`💾 Plano de contas salvo (${planArray.length} contas)`)
+  } catch (error) {
+    console.error('❌ Erro ao salvar plano de contas:', error)
+  }
+}
+
+const loadAccountPlan = (): Map<number | string, AccountPlan> => {
+  try {
+    if (fs.existsSync(ACCOUNT_PLAN_FILE)) {
+      const fileContent = fs.readFileSync(ACCOUNT_PLAN_FILE, 'utf-8')
+      const planArray = JSON.parse(fileContent)
+      const planMap = new Map<number | string, AccountPlan>()
+      
+      planArray.forEach((item: AccountPlan) => {
+        planMap.set(item.ID_Conta, item)
+      })
+      
+      console.log(`📂 Plano de contas carregado (${planArray.length} contas)`)
+      return planMap
+    }
+  } catch (error) {
+    console.error('❌ Erro ao carregar plano de contas:', error)
+  }
+  
+  return new Map()
+}
 
 // Tipos
 interface AccountPlan {
@@ -32,14 +106,17 @@ interface Transaction {
   type: 'income' | 'expense'
   category: string
   // Campos adicionais para compatibilidade com plano de contas
+  // 10 colunas da planilha: Id_Item, Natureza, Tipo, Categoria, SubCategoria, Operação, Origem|Destino, Item, Data, Valor
   Id_Item?: number | string
   Natureza?: string
   Tipo?: string
   Categoria?: string
   SubCategoria?: string
   Operação?: string
-  OrigemDestino?: string
+  OrigemDestino?: string  // Origem|Destino
   Item?: string
+  Data?: string  // Data original do Excel
+  Valor?: number  // Valor original do Excel
 }
 
 interface DashboardData {
@@ -56,68 +133,12 @@ interface DashboardData {
   }
 }
 
-// Armazenamento de dados em memória
-let accountPlan: Map<number | string, AccountPlan> = new Map()
-let transactions: Transaction[] = [
-  {
-    id: 1,
-    date: '2024-01-15',
-    description: 'Salário',
-    amount: 5000.00,
-    type: 'income',
-    category: 'Trabalho',
-  },
-  {
-    id: 2,
-    date: '2024-01-14',
-    description: 'Supermercado',
-    amount: -450.50,
-    type: 'expense',
-    category: 'Alimentação',
-  },
-  {
-    id: 3,
-    date: '2024-01-13',
-    description: 'Freelance',
-    amount: 1200.00,
-    type: 'income',
-    category: 'Trabalho',
-  },
-  {
-    id: 4,
-    date: '2024-01-12',
-    description: 'Conta de Luz',
-    amount: -280.00,
-    type: 'expense',
-    category: 'Utilidades',
-  },
-  {
-    id: 5,
-    date: '2024-01-11',
-    description: 'Restaurante',
-    amount: -120.00,
-    type: 'expense',
-    category: 'Alimentação',
-  },
-  {
-    id: 6,
-    date: '2024-01-10',
-    description: 'Investimento',
-    amount: 2000.00,
-    type: 'income',
-    category: 'Investimentos',
-  },
-  {
-    id: 7,
-    date: '2024-01-09',
-    description: 'Uber',
-    amount: -35.00,
-    type: 'expense',
-    category: 'Transporte',
-  },
-]
+// Armazenamento de dados em memória com persistência em arquivo
+const loadedData = loadTransactions()
+let transactions: Transaction[] = loadedData.transactions
+let nextId = loadedData.nextId
 
-let nextId = 8
+let accountPlan: Map<number | string, AccountPlan> = loadAccountPlan()
 
 // Funções auxiliares
 const calculateBalance = (transactions: Transaction[]) => {
@@ -217,6 +238,7 @@ app.post('/api/transactions', (req: Request, res: Response) => {
   }
   
   transactions.push(transaction)
+  saveTransactions(transactions, nextId)
   res.status(201).json(transaction)
 })
 
@@ -226,6 +248,7 @@ app.delete('/api/transactions/all', (req: Request, res: Response) => {
   const count = transactions.length
   transactions = []
   nextId = 1
+  saveTransactions(transactions, nextId)
   console.log(`${count} transações foram limpas`)
   res.json({ message: 'Todos os dados foram limpos', count })
 })
@@ -250,6 +273,7 @@ app.put('/api/transactions/:id', (req: Request, res: Response) => {
     category: category ? normalizeString(category) : transactions[index].category,
   }
   
+  saveTransactions(transactions, nextId)
   res.json(transactions[index])
 })
 
@@ -264,6 +288,7 @@ app.delete('/api/transactions/:id', (req: Request, res: Response) => {
   }
   
   transactions.splice(index, 1)
+  saveTransactions(transactions, nextId)
   res.json({ message: 'Transação excluída com sucesso' })
 })
 
@@ -339,6 +364,7 @@ app.post('/api/account-plan/import', (req: Request, res: Response) => {
   })
   
   accountPlan = planMap
+  saveAccountPlan(accountPlan)
   
   res.status(201).json({ 
     message: `${newPlan.length} contas importadas no plano de contas`,
@@ -354,6 +380,7 @@ app.get('/api/account-plan', (req: Request, res: Response) => {
 
 app.delete('/api/account-plan/all', (req: Request, res: Response) => {
   accountPlan = new Map()
+  saveAccountPlan(accountPlan)
   res.json({ message: 'Plano de contas limpo' })
 })
 
@@ -412,6 +439,12 @@ app.post('/api/transactions/import', (req: Request, res: Response) => {
     // Usar Valor ou amount
     const valor = t.Valor !== undefined ? parseFloat(String(t.Valor)) : (t.amount !== undefined ? parseFloat(String(t.amount)) : 0)
     
+    // Pular transações com valor zerado
+    if (valor === 0 || isNaN(valor)) {
+      console.log(`Linha ${index + 2}: Pulando transação com valor zerado ou inválido: ${JSON.stringify(t)}`)
+      return // Pula esta transação
+    }
+    
     // Usar Item ou description - normalizar UTF-8
     const description = normalizeString(t.Item || t.description)
     
@@ -445,7 +478,7 @@ app.post('/api/transactions/import', (req: Request, res: Response) => {
       amount: type === 'expense' ? -Math.abs(valor) : Math.abs(valor),
       type,
       category,
-      // Campos adicionais preservados - normalizar UTF-8
+      // Campos adicionais preservados - 10 colunas da planilha
       Id_Item: normalizeString(t.Id_Item),
       Natureza: normalizeString(t.Natureza),
       Tipo: normalizeString(t.Tipo),
@@ -454,6 +487,8 @@ app.post('/api/transactions/import', (req: Request, res: Response) => {
       Operação: normalizeString(t.Operação),
       OrigemDestino: normalizeString(t['Origem|Destino'] || t.OrigemDestino),
       Item: normalizeString(t.Item),
+      Data: normalizeString(t.Data),  // Data original
+      Valor: valor  // Valor original
     }
     
     newTransactions.push(transaction)
@@ -480,6 +515,7 @@ app.post('/api/transactions/import', (req: Request, res: Response) => {
   }
   
   transactions.push(...newTransactions)
+  saveTransactions(transactions, nextId)
   
   console.log('Importação concluída com sucesso!')
   res.status(201).json({ 
@@ -509,5 +545,8 @@ app.get('/', (req: Request, res: Response) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Fundify Backend running on http://localhost:${PORT}`)
+  console.log(`📁 Dados persistidos em: ${DATA_DIR}`)
+  console.log(`📊 Transações carregadas: ${transactions.length}`)
+  console.log(`📋 Plano de contas carregado: ${accountPlan.size} contas`)
 })
 

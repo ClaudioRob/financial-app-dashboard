@@ -35,6 +35,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false)
   const [isAdminMode, setIsAdminMode] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState<string>('')
 
   useEffect(() => {
     loadData()
@@ -91,17 +92,51 @@ function App() {
     )
   }
 
+  // Filtrar transações por mês selecionado
+  const filteredData = {
+    ...data,
+    transactions: data.transactions.filter(t => {
+      if (!selectedMonth) return true
+      const transactionMonth = t.date.substring(0, 7) // YYYY-MM
+      return transactionMonth === selectedMonth
+    })
+  }
+
+  // Recalcular balanço com base nas transações filtradas
+  const filteredBalance = {
+    income: filteredData.transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+    expenses: filteredData.transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0),
+    total: 0,
+    savings: 0
+  }
+  filteredBalance.total = filteredBalance.income - filteredBalance.expenses
+  filteredBalance.savings = filteredBalance.income * 0.1
+
+  filteredData.balance = filteredBalance
+
+  // Gerar lista de meses disponíveis
+  const availableMonths = Array.from(
+    new Set(data.transactions.map(t => t.date.substring(0, 7)))
+  ).sort().reverse()
+
   return (
     <div className="app">
       <Header
         onNewTransaction={() => setIsTransactionModalOpen(true)}
         onAdminMode={() => setIsAdminMode(true)}
+        selectedMonth={selectedMonth}
+        onMonthChange={setSelectedMonth}
+        availableMonths={availableMonths}
       />
       <main className="main-content">
-        <StatsCards balance={data.balance} />
+        <StatsCards balance={filteredData.balance} />
         <div className="dashboard-grid">
           <ChartsSection charts={data.charts} />
-          <RecentTransactions transactions={data.transactions} />
+          <RecentTransactions transactions={filteredData.transactions} />
         </div>
       </main>
       

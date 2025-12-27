@@ -1,12 +1,15 @@
-import { Bell, Search, Settings, Plus, Upload, Trash2 } from './icons'
+import { Bell, Settings, Plus } from './icons'
 import './Header.css'
 
 interface HeaderProps {
   onNewTransaction: () => void
   onAdminMode: () => void
+  selectedMonth: string
+  onMonthChange: (month: string) => void
+  availableMonths: string[]
 }
 
-const Header = ({ onNewTransaction, onAdminMode }: HeaderProps) => {
+const Header = ({ onNewTransaction, onAdminMode, selectedMonth, onMonthChange, availableMonths }: HeaderProps) => {
   return (
     <header className="header">
       <div className="header-content">
@@ -21,9 +24,23 @@ const Header = ({ onNewTransaction, onAdminMode }: HeaderProps) => {
               <span>Nova Transação</span>
             </button>
           </div>
-          <div className="search-box">
-            <Search size={20} />
-            <input type="text" placeholder="Buscar..." />
+          <div className="month-selector-header">
+            <select
+              value={selectedMonth}
+              onChange={(e) => onMonthChange(e.target.value)}
+              className="month-select-header"
+            >
+              <option value="">Todos os meses</option>
+              {availableMonths.map(month => {
+                const [year, monthNum] = month.split('-')
+                const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                return (
+                  <option key={month} value={month}>
+                    {monthName.charAt(0).toUpperCase() + monthName.slice(1)}
+                  </option>
+                )
+              })}
+            </select>
           </div>
           <button className="icon-button">
             <Bell size={20} />
