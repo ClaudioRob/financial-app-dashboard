@@ -448,16 +448,21 @@ app.post('/api/transactions/import', (req: Request, res: Response) => {
     // Usar Item ou description - normalizar UTF-8
     const description = normalizeString(t.Item || t.description)
     
-    // Usar Data ou date
-    let date = normalizeString(t.Data || t.date)
+    // Usar Data ou date - manter como string de data
+    let date = String(t.Data || t.date || '').trim()
     if (!date) {
       date = new Date().toISOString().split('T')[0]
     }
     // Converter formato de data se necessário (DD/MM/YYYY para YYYY-MM-DD)
-    if (date.includes('/')) {
-      const [day, month, year] = date.split('/')
-      date = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+    else if (date.includes('/')) {
+      const parts = date.split('/')
+      if (parts.length === 3) {
+        const [day, month, year] = parts
+        date = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+      }
     }
+    // Garantir que a data está no formato correto YYYY-MM-DD
+    // Se já estiver no formato correto, não fazer nada
     
     // Usar Categoria do lançamento ou do plano de contas - normalizar UTF-8
     let category = normalizeString(t.Categoria || t.category || 'Outros')
@@ -466,10 +471,9 @@ app.post('/api/transactions/import', (req: Request, res: Response) => {
       category = normalizeString(account.Categoria || category)
     }
     
-    // Usar Id_Item como ID se disponível, senão gerar novo ID numérico
-    // Mas manter Id_Item como campo separado para referência ao plano de contas
-    const hasIdItem = t.Id_Item !== undefined && t.Id_Item !== null && String(t.Id_Item).trim() !== ''
-    const transactionId = hasIdItem ? normalizeString(t.Id_Item) : nextId++
+    // SEMPRE gerar um ID único numérico para evitar duplicatas
+    // Id_Item é mantido separadamente apenas para referência ao plano de contas
+    const transactionId = nextId++
     
     const transaction: Transaction = {
       id: transactionId,

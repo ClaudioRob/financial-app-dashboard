@@ -11,6 +11,11 @@ interface ImportModalProps {
 
 type ImportType = 'account-plan' | 'transactions'
 
+interface FileWithInfo {
+  file: File
+  recordCount: number
+}
+
 const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -18,6 +23,8 @@ const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
   const [importType, setImportType] = useState<ImportType>('transactions')
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [skipValidation, setSkipValidation] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<FileWithInfo[]>([])
+  const [importProgress, setImportProgress] = useState<{ current: number, total: number, fileName: string }>({ current: 0, total: 0, fileName: '' })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const parseCSV = (text: string): string[][] => {
@@ -58,15 +65,42 @@ const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
     })
   }
 
+  const countRecordsInFile = async (file: File): Promise<number> => {
+    try {
+      const text = await file.text()
+      const lines = parseCSV(text)
+      // Subtrair 1 para remover o header, e filtrar linhas vazias
+      const recordCount = lines.slice(1).filter(line => 
+        line.some(cell => cell && cell.trim() !== '')
+      ).length
+      return recordCount
+    } catch (err) {
+      console.error('Erro ao contar registros:', err)
+      return 0
+    }
+  }
+
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
+    const files = event.target.files
+    if (!files || files.length === 0) return
 
     setError('')
     setSuccess('')
     setValidationErrors([])
-    setLoading(true)
 
+    // Processar arquivos para contar registros
+    const fileArray = Array.from(files)
+    const filesWithInfo: FileWithInfo[] = await Promise.all(
+      fileArray.map(async (file) => ({
+        file,
+        recordCount: await countRecordsInFile(file)
+      }))
+    )
+    
+    setSelectedFiles(filesWithInfo)
+  }
+
+  const processFile = async (file: File) => {
     try {
       // Ler arquivo como ArrayBuffer para garantir controle total do encoding
       const arrayBuffer = await file.arrayBuffer()
@@ -86,9 +120,6 @@ const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
       else if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
         const uint16Array = new Uint16Array(arrayBuffer.slice(2))
         text = String.fromCharCode(...uint16Array)
-        // Processar e retornar
-        const lines = parseCSV(text)
-        // Continuar com o processamento...
       }
       // UTF-16 BE BOM: FE FF
       else if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
@@ -99,13 +130,10 @@ const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
           reversed[i] = (uint16Array[i] >> 8) | (uint16Array[i] << 8)
         }
         text = String.fromCharCode(...reversed)
-        const lines = parseCSV(text)
-        // Continuar com o processamento...
       }
       
       // Tentar diferentes encodings comuns (Windows-1252 é comum no Brasil)
       const encodings = ['utf-8', 'windows-1252', 'iso-8859-1', 'latin1', 'cp1252']
-      let decoded = false
       let bestText = ''
       let bestEncoding = 'utf-8'
       let minInvalidChars = Infinity
@@ -127,7 +155,6 @@ const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
             bestText = decodedText
             bestEncoding = encoding
             if (replacementCharCount === 0 && hasPortugueseChars) {
-              decoded = true
               break // Encontrou encoding perfeito
             }
           }
@@ -248,13 +275,10 @@ const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
           throw new Error(errorMsg)
         }
 
-        const result = await importAccountPlan(accountPlan)
-        setSuccess(`${result.count} contas importadas com sucesso!`)
+        await importAccountPlan(accountPlan)
         
-        setTimeout(() => {
-          onSuccess()
-          onClose()
-        }, 1500)
+        // Retornar informações do arquivo
+        return { recordCount: accountPlan.length }
       } else {
         // Importar lançamentos
         const transactions: any[] = []
@@ -316,9 +340,21 @@ const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
             } else if (headerLower === 'item') {
               transaction.Item = value
             } else if (headerLower === 'data') {
-              transaction.Data = value
+              // Converter data para formato YYYY-MM-DD se necessário
+              let dateValue = value.trim()
+              if (dateValue.includes('/')) {
+                // Formato DD/MM/YYYY para YYYY-MM-DD
+                const parts = dateValue.split('/')
+                if (parts.length === 3) {
+                  const [day, month, year] = parts
+                  dateValue = `${year.padStart(4, '0')}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+                }
+              }
+              transaction.Data = dateValue
             } else if (headerLower === 'valor') {
-              transaction.Valor = value
+              // Converter valor para número
+              const valorStr = value.replace(',', '.').trim()
+              transaction.Valor = parseFloat(valorStr) || 0
             }
             // Compatibilidade com formato antigo
             else if (headerLower === 'date') {
@@ -365,66 +401,99 @@ const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
 
         console.log('Enviando transações para o backend...', transactions.slice(0, 3))
 
-        try {
-          const result = await importTransactions(transactions, !skipValidation)
-          console.log('Resultado da importação:', result)
-          
-          setSuccess(result.message)
-          
-          if (result.errors && result.errors.length > 0) {
-            console.error('Erros de validação:', result.errors)
-            setValidationErrors(result.errors)
-          }
-          
-          setTimeout(() => {
-            onSuccess()
-            if (!result.errors || result.errors.length === 0) {
-              onClose()
-            }
-          }, result.errors && result.errors.length > 0 ? 5000 : 1500)
-        } catch (err: any) {
-          console.error('Erro ao importar:', err)
-          console.error('Detalhes do erro:', err.message)
-          
-          // Tentar extrair erros do backend
-          let backendErrors: string[] = []
-          let errorMessage = err.message || 'Erro ao importar arquivo'
-          
-          if (err.message) {
-            try {
-              // Tentar parsear se for JSON
-              const errorData = JSON.parse(err.message)
-              if (errorData.errors && Array.isArray(errorData.errors)) {
-                backendErrors = errorData.errors
-              }
-              if (errorData.error) {
-                errorMessage = errorData.error
-              }
-              if (errorData.debug) {
-                console.error('Debug do backend:', errorData.debug)
-              }
-            } catch (e) {
-              // Não é JSON, usar mensagem direta
-            }
-          }
-          
-          if (backendErrors.length > 0) {
-            setValidationErrors(backendErrors)
-            setError(errorMessage)
-          } else {
-            setError(errorMessage)
-          }
+        const result = await importTransactions(transactions, !skipValidation)
+        console.log('Resultado da importação:', result)
+        
+        if (result.errors && result.errors.length > 0) {
+          console.error('Erros de validação:', result.errors)
+          throw new Error(`Erros de validação: ${result.errors.slice(0, 3).join('; ')}`)
         }
+        
+        // Retornar informações do arquivo
+        return { recordCount: transactions.length }
       }
     } catch (err: any) {
-      setError(err.message || 'Erro ao importar arquivo. Verifique o formato.')
+      throw new Error(err.message || 'Erro ao processar arquivo')
+    }
+    
+    return { recordCount: 0 }
+  }
+
+  const handleImportFiles = async () => {
+    if (selectedFiles.length === 0) return
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+    setValidationErrors([])
+
+    const allErrors: string[] = []
+    const fileResults: Array<{ name: string; size: number; records: number }> = []
+    let totalImported = 0
+    let totalRecords = 0
+    let filesWithErrors = 0
+
+    try {
+      setImportProgress({ current: 0, total: selectedFiles.length, fileName: '' })
+
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const fileWithInfo = selectedFiles[i]
+        const file = fileWithInfo.file
+        setImportProgress({ current: i + 1, total: selectedFiles.length, fileName: file.name })
+
+        try {
+          const result = await processFile(file)
+          const recordCount = result?.recordCount || 0
+          totalImported++
+          totalRecords += recordCount
+          fileResults.push({ name: file.name, size: file.size, records: recordCount })
+        } catch (err: any) {
+          filesWithErrors++
+          allErrors.push(`${file.name}: ${err.message || 'Erro desconhecido'}`)
+          console.error(`Erro ao processar ${file.name}:`, err)
+        }
+      }
+
+      // Sempre chamar onSuccess para recarregar dados, mesmo se houver alguns erros
+      if (totalImported > 0) {
+        const filesDetails = fileResults.map(f => 
+          `${f.name} (${(f.size / 1024).toFixed(1)} KB, ${f.records} registro${f.records !== 1 ? 's' : ''})`
+        ).join(', ')
+        setSuccess(`✅ ${totalImported} de ${selectedFiles.length} arquivo(s) importado(s) com sucesso! Total: ${totalRecords} registro(s).\n\n📄 Arquivos: ${filesDetails}`)
+        onSuccess() // Recarregar dados imediatamente se algum arquivo foi importado
+      }
+
+      if (allErrors.length > 0) {
+        setValidationErrors(allErrors)
+        if (totalImported === 0) {
+          setError('Nenhum arquivo foi importado com sucesso.')
+        }
+      }
+
+      // Fechar modal após um delay
+      setTimeout(() => {
+        if (allErrors.length === 0) {
+          onClose()
+        }
+      }, allErrors.length > 0 ? 3000 : 1500)
+    } catch (err: any) {
+      setError(err.message || 'Erro ao importar arquivos')
       console.error(err)
     } finally {
       setLoading(false)
+      setImportProgress({ current: 0, total: 0, fileName: '' })
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
     }
+  }
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+  }
+  
+  const getTotalRecords = () => {
+    return selectedFiles.reduce((sum, f) => sum + f.recordCount, 0)
   }
 
   const handleDownloadTemplate = () => {
@@ -545,23 +614,72 @@ const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
               ref={fileInputRef}
               type="file"
               accept=".csv,.txt"
+              multiple
               onChange={handleFileSelect}
               style={{ display: 'none' }}
               id="file-input"
             />
             <label htmlFor="file-input" className="file-label">
               <Upload size={48} />
-              <span>{loading ? 'Processando...' : 'Clique para selecionar arquivo CSV'}</span>
-              <small>ou arraste o arquivo aqui</small>
+              <span>{loading ? 'Processando...' : 'Clique para selecionar arquivo(s) CSV'}</span>
+              <small>ou arraste o(s) arquivo(s) aqui</small>
             </label>
           </div>
+
+          {selectedFiles.length > 0 && !loading && (
+            <div className="selected-files">
+              <h4>Arquivos selecionados ({selectedFiles.length}) - Total: {getTotalRecords()} registro(s)</h4>
+              <ul className="files-list">
+                {selectedFiles.map((fileWithInfo, index) => (
+                  <li key={index} className="file-item">
+                    <span className="file-name">{fileWithInfo.file.name}</span>
+                    <span className="file-size">({(fileWithInfo.file.size / 1024).toFixed(1)} KB, {fileWithInfo.recordCount} registro{fileWithInfo.recordCount !== 1 ? 's' : ''})</span>
+                    <button 
+                      type="button" 
+                      className="btn-remove-file" 
+                      onClick={() => removeFile(index)}
+                      title="Remover arquivo"
+                    >
+                      ✕
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button 
+                type="button" 
+                className="btn-import-files" 
+                onClick={handleImportFiles}
+              >
+                Importar {selectedFiles.length} arquivo(s)
+              </button>
+            </div>
+          )}
+
+          {loading && importProgress.total > 0 && (
+            <div className="import-progress">
+              <div className="progress-info">
+                <span>Importando {importProgress.current} de {importProgress.total}</span>
+                <span className="current-file">{importProgress.fileName}</span>
+              </div>
+              <div className="progress-bar">
+                <div 
+                  className="progress-fill" 
+                  style={{ width: `${(importProgress.current / importProgress.total) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="form-error">
               <strong>Erro:</strong> {error}
             </div>
           )}
-          {success && <div className="form-success">{success}</div>}
+          {success && (
+            <div className="form-success" style={{ whiteSpace: 'pre-line' }}>
+              {success}
+            </div>
+          )}
           {validationErrors.length > 0 && (
             <div className="form-error" style={{ maxHeight: '300px', overflowY: 'auto' }}>
               <strong>Erros de validação encontrados ({validationErrors.length}):</strong>

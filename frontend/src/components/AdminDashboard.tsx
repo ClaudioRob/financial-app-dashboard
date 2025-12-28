@@ -35,6 +35,10 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
   const [accountFilterValue, setAccountFilterValue] = useState<string>('')
   const [transactionFilterColumn, setTransactionFilterColumn] = useState<string>('')
   const [transactionFilterValue, setTransactionFilterValue] = useState<string>('')
+  
+  // Estados para filtro de período de data
+  const [transactionDateFrom, setTransactionDateFrom] = useState<string>('')
+  const [transactionDateTo, setTransactionDateTo] = useState<string>('')
 
   useEffect(() => {
     loadData()
@@ -305,46 +309,61 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
   }, [sortedAccountPlan, accountFilterColumn, accountFilterValue])
 
   const sortedTransactions = useMemo(() => {
-    let filtered = transactions
-    
-    // Filtro por coluna específica
-    if (transactionFilterColumn && transactionFilterValue) {
-      filtered = filtered.filter((transaction: any) => {
-        const columnValue = String(transaction[transactionFilterColumn] || '').toLowerCase()
-        return columnValue.includes(transactionFilterValue.toLowerCase())
-      })
-    }
-    
-    if (!transactionSortField || !transactionSortDirection) return filtered
+    if (!transactionSortField || !transactionSortDirection) return transactions
     
     const sorted = [...transactions].sort((a: any, b: any) => {
-      let aVal: any = a[transactionSortField]
-      let bVal: any = b[transactionSortField]
+      const aVal = a[transactionSortField] || ''
+      const bVal = b[transactionSortField] || ''
       
-      // Tratamento especial para Valor
-      if (transactionSortField === 'Valor') {
-        aVal = Math.abs(a.Valor || a.amount || 0)
-        bVal = Math.abs(b.Valor || b.amount || 0)
-        return transactionSortDirection === 'asc' ? aVal - bVal : bVal - aVal
-      }
-      
-      // Tratamento especial para Data
-      if (transactionSortField === 'Data') {
-        aVal = new Date(a.Data || a.date || 0).getTime()
-        bVal = new Date(b.Data || b.date || 0).getTime()
-        return transactionSortDirection === 'asc' ? aVal - bVal : bVal - aVal
-      }
-      
-      // Ordenação alfabética para outros campos
       if (transactionSortDirection === 'asc') {
-        return String(aVal || '').localeCompare(String(bVal || ''), 'pt-BR', { numeric: true })
+        return String(aVal).localeCompare(String(bVal), 'pt-BR', { numeric: true })
       } else {
-        return String(bVal || '').localeCompare(String(aVal || ''), 'pt-BR', { numeric: true })
+        return String(bVal).localeCompare(String(aVal), 'pt-BR', { numeric: true })
       }
     })
     
     return sorted
-  }, [transactions, transactionSortField, transactionSortDirection, transactionFilterColumn, transactionFilterValue])
+  }, [transactions, transactionSortField, transactionSortDirection])
+
+  // Filtrar lançamentos
+  const filteredTransactions = useMemo(() => {
+    let filtered = sortedTransactions
+    
+    // Filtro por coluna específica
+    if (transactionFilterColumn && transactionFilterColumn !== 'Data') {
+      if (transactionFilterValue) {
+        filtered = filtered.filter((transaction: any) => {
+          let columnValue = transaction[transactionFilterColumn]
+          
+          // Tratamento especial para Valor
+          if (transactionFilterColumn === 'Valor') {
+            columnValue = String(transaction.Valor || transaction.amount || '')
+          }
+          
+          return String(columnValue || '').toLowerCase().includes(transactionFilterValue.toLowerCase())
+        })
+      }
+    }
+    
+    // Filtro especial por período de data
+    if (transactionFilterColumn === 'Data' && (transactionDateFrom || transactionDateTo)) {
+      filtered = filtered.filter((transaction: any) => {
+        const transactionDate = transaction.Data || transaction.date || ''
+        
+        if (transactionDateFrom && transactionDate < transactionDateFrom) {
+          return false
+        }
+        
+        if (transactionDateTo && transactionDate > transactionDateTo) {
+          return false
+        }
+        
+        return true
+      })
+    }
+    
+    return filtered
+  }, [sortedTransactions, transactionFilterColumn, transactionFilterValue, transactionDateFrom, transactionDateTo])
 
   const AccountSortIcon = ({ field }: { field: string }) => {
     if (accountSortField !== field) {
@@ -568,6 +587,8 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                   onChange={(e) => {
                     setTransactionFilterColumn(e.target.value)
                     setTransactionFilterValue('')
+                    setTransactionDateFrom('')
+                    setTransactionDateTo('')
                   }}
                   className="filter-select"
                 >
@@ -583,7 +604,7 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                   <option value="Data">Data</option>
                   <option value="Valor">Valor</option>
                 </select>
-                {transactionFilterColumn && (
+                {transactionFilterColumn && transactionFilterColumn !== 'Data' && (
                   <input
                     type="text"
                     placeholder="Digite o valor..."
@@ -591,6 +612,27 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                     onChange={(e) => setTransactionFilterValue(e.target.value)}
                     className="filter-input-header"
                   />
+                )}
+                {transactionFilterColumn === 'Data' && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="date"
+                      placeholder="De"
+                      value={transactionDateFrom}
+                      onChange={(e) => setTransactionDateFrom(e.target.value)}
+                      className="filter-input-header"
+                      style={{ maxWidth: '150px' }}
+                    />
+                    <span style={{ color: 'var(--text-secondary)' }}>até</span>
+                    <input
+                      type="date"
+                      placeholder="Até"
+                      value={transactionDateTo}
+                      onChange={(e) => setTransactionDateTo(e.target.value)}
+                      className="filter-input-header"
+                      style={{ maxWidth: '150px' }}
+                    />
+                  </div>
                 )}
                 <button className="btn-add" onClick={handleAddTransaction}>
                   <Plus size={18} />
@@ -605,24 +647,38 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                     <th className="sortable" onClick={() => handleTransactionSort('Id_Item')}>
                       Id_Item <TransactionSortIcon field="Id_Item" />
                     </th>
-                    <th>Natureza</th>
-                    <th>Tipo</th>
-                    <th>Categoria</th>
-                    <th>SubCategoria</th>
-                    <th>Operação</th>
-                    <th>Origem|Destino</th>
+                    <th className="sortable" onClick={() => handleTransactionSort('Natureza')}>
+                      Natureza <TransactionSortIcon field="Natureza" />
+                    </th>
+                    <th className="sortable" onClick={() => handleTransactionSort('Tipo')}>
+                      Tipo <TransactionSortIcon field="Tipo" />
+                    </th>
+                    <th className="sortable" onClick={() => handleTransactionSort('Categoria')}>
+                      Categoria <TransactionSortIcon field="Categoria" />
+                    </th>
+                    <th className="sortable" onClick={() => handleTransactionSort('SubCategoria')}>
+                      SubCategoria <TransactionSortIcon field="SubCategoria" />
+                    </th>
+                    <th className="sortable" onClick={() => handleTransactionSort('Operação')}>
+                      Operação <TransactionSortIcon field="Operação" />
+                    </th>
+                    <th className="sortable" onClick={() => handleTransactionSort('OrigemDestino')}>
+                      Origem|Destino <TransactionSortIcon field="OrigemDestino" />
+                    </th>
                     <th className="sortable" onClick={() => handleTransactionSort('Item')}>
                       Item <TransactionSortIcon field="Item" />
                     </th>
                     <th className="sortable" onClick={() => handleTransactionSort('Data')}>
                       Data <TransactionSortIcon field="Data" />
                     </th>
-                    <th>Valor</th>
+                    <th className="sortable" onClick={() => handleTransactionSort('Valor')}>
+                      Valor <TransactionSortIcon field="Valor" />
+                    </th>
                     <th>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedTransactions.map((transaction: any) => (
+                  {filteredTransactions.map((transaction: any) => (
                     <tr key={transaction.id}>
                       {editingId === transaction.id && editedTransaction ? (
                         <>

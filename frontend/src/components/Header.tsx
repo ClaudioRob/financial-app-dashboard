@@ -14,8 +14,8 @@ const Header = ({ onNewTransaction, onAdminMode, selectedMonth, onMonthChange, a
     <header className="header">
       <div className="header-content">
         <div className="header-left">
-          <h1 className="logo">Fundify</h1>
-          <span className="logo-subtitle">Dashboard Financeiro</span>
+          <h1 className="logo">Dashboard Financeiro</h1>
+          {/* <span className="logo-subtitle">Dashboard Financeiro</span> */}
         </div>
         <div className="header-right">
           <div className="header-actions">
