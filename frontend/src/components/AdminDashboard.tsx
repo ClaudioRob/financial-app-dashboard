@@ -273,6 +273,16 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
     loadData()
   }
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+  }
+
   const handleAccountSort = (field: string) => {
     if (accountSortField === field) {
       // Alternar direção: asc -> desc -> null
@@ -816,7 +826,7 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                           <td>{transaction.Operação || '-'}</td>
                           <td>{transaction.OrigemDestino || '-'}</td>
                           <td>{transaction.Item || '-'}</td>
-                          <td>{transaction.Data || transaction.date || '-'}</td>
+                          <td>{formatDate(transaction.Data || transaction.date)}</td>
                           <td className={transaction.Natureza?.toLowerCase().includes('receita') ? 'positive' : 'negative'}>
                             R$ {Math.abs(transaction.Valor || transaction.amount || 0).toFixed(2)}
                           </td>

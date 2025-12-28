@@ -26,7 +26,8 @@ const RecentTransactions = ({ transactions }: RecentTransactionsProps) => {
     const date = new Date(dateString)
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
-      month: 'short',
+      month: '2-digit',
+      year: 'numeric',
     })
   }
 

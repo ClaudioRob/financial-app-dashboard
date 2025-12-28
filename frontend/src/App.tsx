@@ -118,10 +118,10 @@ function App() {
 
   filteredData.balance = filteredBalance
 
-  // Gerar lista de meses disponíveis
+  // Gerar lista de meses disponíveis (ordenado cronologicamente)
   const availableMonths = Array.from(
     new Set(data.transactions.map(t => t.date.substring(0, 7)))
-  ).sort().reverse()
+  ).sort() // Ordenar cronologicamente (YYYY-MM)
 
   return (
     <div className="app">
