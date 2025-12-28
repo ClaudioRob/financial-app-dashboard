@@ -157,18 +157,24 @@ const calculateBalance = (transactions: Transaction[]) => {
 }
 
 const calculateCharts = (transactions: Transaction[]) => {
-  // Agrupar por mês
-  const monthlyMap = new Map<string, { income: number; expenses: number }>()
+  // Agrupar por mês com ano-mês para ordenação correta
+  const monthlyMap = new Map<string, { income: number; expenses: number; sortKey: string }>()
   
   transactions.forEach((t) => {
     const date = new Date(t.date)
-    const monthKey = date.toLocaleDateString('pt-BR', { month: 'short' })
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    const monthName = date.toLocaleDateString('pt-BR', { month: 'short' })
     
-    if (!monthlyMap.has(monthKey)) {
-      monthlyMap.set(monthKey, { income: 0, expenses: 0 })
+    // Criar chave única com ano e mês para ordenação (formato: YYYY-MM)
+    const sortKey = `${year}-${String(month + 1).padStart(2, '0')}`
+    const displayKey = monthName.charAt(0).toUpperCase() + monthName.slice(1)
+    
+    if (!monthlyMap.has(sortKey)) {
+      monthlyMap.set(sortKey, { income: 0, expenses: 0, sortKey })
     }
     
-    const monthData = monthlyMap.get(monthKey)!
+    const monthData = monthlyMap.get(sortKey)!
     if (t.type === 'income') {
       monthData.income += Math.abs(t.amount)
     } else {
@@ -177,10 +183,17 @@ const calculateCharts = (transactions: Transaction[]) => {
   })
   
   const monthly = Array.from(monthlyMap.entries())
-    .map(([month, data]) => ({ month, ...data }))
-    .sort((a, b) => {
-      const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-      return months.indexOf(a.month) - months.indexOf(b.month)
+    .sort((a, b) => a[0].localeCompare(b[0])) // Ordenar por sortKey (YYYY-MM)
+    .map(([sortKey, data]) => {
+      const [year, month] = sortKey.split('-')
+      const monthIndex = parseInt(month) - 1
+      const date = new Date(parseInt(year), monthIndex, 1)
+      const monthName = date.toLocaleDateString('pt-BR', { month: 'short' })
+      return { 
+        month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+        income: data.income,
+        expenses: data.expenses
+      }
     })
   
   // Agrupar por categoria
