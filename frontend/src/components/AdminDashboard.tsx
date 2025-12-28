@@ -218,27 +218,54 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
   }
 
   const handleClearAllData = async () => {
-    const confirmMessage = activeTab === 'account-plan' 
-      ? 'Tem certeza que deseja limpar TODOS os dados do plano de contas? Esta ação não pode ser desfeita.'
-      : 'Tem certeza que deseja limpar TODOS os lançamentos? Esta ação não pode ser desfeita.'
-    
-    if (!window.confirm(confirmMessage)) return
+    if (activeTab === 'account-plan') {
+      const confirmMessage = 'Tem certeza que deseja limpar TODOS os dados do plano de contas? Esta ação não pode ser desfeita.'
+      
+      if (!window.confirm(confirmMessage)) return
 
-    try {
-      if (activeTab === 'account-plan') {
+      try {
         // Limpar plano de contas
         await clearAccountPlan()
         setAccountPlan([])
         alert('Plano de contas limpo com sucesso!')
-      } else {
-        // Limpar transações usando a função da API
-        await clearAllData()
-        setTransactions([])
-        alert('Todos os lançamentos foram limpos com sucesso!')
+      } catch (err: any) {
+        console.error('Erro ao limpar dados:', err)
+        alert(err.message || 'Erro ao limpar dados. Tente novamente.')
       }
-    } catch (err: any) {
-      console.error('Erro ao limpar dados:', err)
-      alert(err.message || 'Erro ao limpar dados. Tente novamente.')
+    } else {
+      // Para lançamentos, limpar apenas os filtrados
+      const hasFilter = transactionFilterColumn && 
+        (transactionFilterValue || transactionDateFrom || transactionDateTo)
+      
+      const confirmMessage = hasFilter
+        ? `Tem certeza que deseja excluir os ${filteredTransactions.length} lançamento(s) filtrado(s)? Esta ação não pode ser desfeita.`
+        : 'Tem certeza que deseja limpar TODOS os lançamentos? Esta ação não pode ser desfeita.'
+      
+      if (!window.confirm(confirmMessage)) return
+
+      try {
+        if (hasFilter) {
+          // Excluir apenas os lançamentos filtrados
+          for (const transaction of filteredTransactions) {
+            await deleteTransaction(transaction.id as any)
+          }
+          
+          // Atualizar lista removendo os filtrados
+          const filteredIds = new Set(filteredTransactions.map((t: any) => t.id))
+          const remaining = transactions.filter((t: any) => !filteredIds.has(t.id))
+          setTransactions(remaining)
+          
+          alert(`${filteredTransactions.length} lançamento(s) excluído(s) com sucesso!`)
+        } else {
+          // Limpar todos os lançamentos
+          await clearAllData()
+          setTransactions([])
+          alert('Todos os lançamentos foram limpos com sucesso!')
+        }
+      } catch (err: any) {
+        console.error('Erro ao limpar dados:', err)
+        alert(err.message || 'Erro ao limpar dados. Tente novamente.')
+      }
     }
   }
 
@@ -404,7 +431,11 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
           </button>
           <button className="admin-btn-clear" onClick={handleClearAllData}>
             <Trash2 size={18} />
-            Limpar {activeTab === 'account-plan' ? 'Plano de Contas' : 'Lançamentos'}
+            {activeTab === 'account-plan' 
+              ? 'Limpar Plano de Contas' 
+              : (transactionFilterColumn && (transactionFilterValue || transactionDateFrom || transactionDateTo)
+                  ? `Excluir Filtrados (${filteredTransactions.length})`
+                  : 'Limpar Lançamentos')}
           </button>
           <button className="admin-close" onClick={onClose}>
             <X size={24} />
@@ -417,13 +448,13 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
           className={`admin-tab ${activeTab === 'account-plan' ? 'active' : ''}`}
           onClick={() => setActiveTab('account-plan')}
         >
-          Plano de Contas ({accountPlan.length})
+          Plano de Contas ({filteredAccountPlan.length}{filteredAccountPlan.length !== accountPlan.length ? ` / ${accountPlan.length}` : ''})
         </button>
         <button 
           className={`admin-tab ${activeTab === 'transactions' ? 'active' : ''}`}
           onClick={() => setActiveTab('transactions')}
         >
-          Lançamentos ({transactions.length})
+          Lançamentos ({filteredTransactions.length}{filteredTransactions.length !== transactions.length ? ` / ${transactions.length}` : ''})
         </button>
       </div>
 
