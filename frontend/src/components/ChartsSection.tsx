@@ -21,10 +21,11 @@ interface ChartsSectionProps {
     categories: Array<{ category: string; amount: number }>
   }
   transactions: Transaction[]
-  selectedMonth?: string
+  selectedMonth?: number
+  selectedYear?: number
 }
 
-const ChartsSection = ({ charts, transactions, selectedMonth }: ChartsSectionProps) => {
+const ChartsSection = ({ charts, transactions, selectedMonth, selectedYear }: ChartsSectionProps) => {
   const [activeTab, setActiveTab] = useState<'monthly' | 'categories' | 'salary'>('monthly')
   const [salaryStatus, setSalaryStatus] = useState<'all' | 'received' | 'pending'>('all')
 
@@ -43,11 +44,13 @@ const ChartsSection = ({ charts, transactions, selectedMonth }: ChartsSectionPro
     const currentDate = new Date()
     let salaryTransactions = transactions.filter(t => t.Categoria === 'Folha Salarial')
     
-    // Filtrar por mês se houver seleção
-    if (selectedMonth) {
+    // Filtrar por mês e ano se houver seleção
+    if (selectedMonth && selectedYear) {
       salaryTransactions = salaryTransactions.filter(t => {
-        const transactionMonth = t.date.substring(0, 7) // YYYY-MM
-        return transactionMonth === selectedMonth
+        const transactionDate = new Date(t.date)
+        const transactionMonth = transactionDate.getMonth() + 1
+        const transactionYear = transactionDate.getFullYear()
+        return transactionMonth === selectedMonth && transactionYear === selectedYear
       })
     }
     
@@ -98,7 +101,7 @@ const ChartsSection = ({ charts, transactions, selectedMonth }: ChartsSectionPro
       totalDescontos,
       liquido
     }
-  }, [transactions, salaryStatus, selectedMonth])
+  }, [transactions, salaryStatus, selectedMonth, selectedYear])
 
   return (
     <div className="charts-section">

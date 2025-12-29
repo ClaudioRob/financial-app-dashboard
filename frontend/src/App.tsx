@@ -6,6 +6,7 @@ import ChartsSection from './components/ChartsSection'
 import RecentTransactions from './components/RecentTransactions'
 import TransactionModal from './components/TransactionModal'
 import AdminDashboard from './components/AdminDashboard'
+import CashFlow from './components/CashFlow'
 import { fetchDashboardData } from './services/api'
 
 export interface DashboardData {
@@ -35,7 +36,10 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false)
   const [isAdminMode, setIsAdminMode] = useState(false)
-  const [selectedMonth, setSelectedMonth] = useState<string>('')
+  
+  // Definir mês e ano serão configurados após carregar os dados
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
+  const [selectedYear, setSelectedYear] = useState<number | null>(null)
 
   useEffect(() => {
     loadData()
@@ -47,6 +51,24 @@ function App() {
       setError(null)
       const dashboardData = await fetchDashboardData()
       setData(dashboardData)
+      
+      // Configurar ano e mês padrão com base nos dados carregados
+      if (dashboardData.transactions.length > 0 && selectedYear === null) {
+        const years = Array.from(
+          new Set(dashboardData.transactions.map(t => new Date(t.date).getFullYear()))
+        ).sort((a, b) => b - a)
+        
+        const defaultYear = years[0] // Ano mais recente
+        setSelectedYear(defaultYear)
+        
+        // Pegar o primeiro mês disponível nesse ano
+        const monthsInYear = dashboardData.transactions
+          .filter(t => new Date(t.date).getFullYear() === defaultYear)
+          .map(t => new Date(t.date).getMonth() + 1)
+        
+        const defaultMonth = Math.min(...monthsInYear)
+        setSelectedMonth(defaultMonth)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar dados')
       console.error('Erro ao carregar dashboard:', err)
@@ -84,6 +106,11 @@ function App() {
     return null
   }
 
+  // Aguardar configuração do mês e ano padrão
+  if (selectedYear === null || selectedMonth === null) {
+    return null
+  }
+
   if (isAdminMode) {
     return (
       <div className="app">
@@ -92,13 +119,14 @@ function App() {
     )
   }
 
-  // Filtrar transações por mês selecionado
+  // Filtrar transações por mês e ano selecionados
   const filteredData = {
     ...data,
     transactions: data.transactions.filter(t => {
-      if (!selectedMonth) return true
-      const transactionMonth = t.date.substring(0, 7) // YYYY-MM
-      return transactionMonth === selectedMonth
+      const transactionDate = new Date(t.date)
+      const transactionMonth = transactionDate.getMonth() + 1
+      const transactionYear = transactionDate.getFullYear()
+      return transactionMonth === selectedMonth && transactionYear === selectedYear
     })
   }
 
@@ -118,10 +146,10 @@ function App() {
 
   filteredData.balance = filteredBalance
 
-  // Gerar lista de meses disponíveis (ordenado cronologicamente)
-  const availableMonths = Array.from(
-    new Set(data.transactions.map(t => t.date.substring(0, 7)))
-  ).sort() // Ordenar cronologicamente (YYYY-MM)
+  // Gerar lista de anos disponíveis
+  const availableYears = Array.from(
+    new Set(data.transactions.map(t => new Date(t.date).getFullYear()))
+  ).sort((a, b) => b - a) // Ordenar do mais recente para o mais antigo
 
   return (
     <div className="app">
@@ -129,8 +157,10 @@ function App() {
         onNewTransaction={() => setIsTransactionModalOpen(true)}
         onAdminMode={() => setIsAdminMode(true)}
         selectedMonth={selectedMonth}
+        selectedYear={selectedYear}
         onMonthChange={setSelectedMonth}
-        availableMonths={availableMonths}
+        onYearChange={setSelectedYear}
+        availableYears={availableYears}
       />
       <main className="main-content">
         <StatsCards balance={filteredData.balance} />
@@ -138,10 +168,15 @@ function App() {
           <ChartsSection 
             charts={data.charts} 
             transactions={data.transactions}
-            selectedMonth={selectedMonth}
+            selectedMonth={`${selectedYear}-${String(selectedMonth).padStart(2, '0')}`}
           />
           <RecentTransactions transactions={filteredData.transactions} />
         </div>
+        <CashFlow 
+          transactions={data.transactions}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+        />
       </main>
       
       <TransactionModal

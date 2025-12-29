@@ -139,10 +139,10 @@
 
 .filter-select {
   padding: 10px 16px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
+  background: var(--primary-color);
+  border: 1px solid var(--primary-color);
   border-radius: 8px;
-  color: var(--text-primary);
+  color: white;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -151,14 +151,14 @@
 }
 
 .filter-select:hover {
-  background: var(--bg-hover);
-  border-color: var(--primary-color);
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
 }
 
 .filter-select:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+  border-color: var(--primary-light);
+  box-shadow: 0 0 0 2px rgba(74, 143, 231, 0.3);
 }
 
 .filter-input-header {

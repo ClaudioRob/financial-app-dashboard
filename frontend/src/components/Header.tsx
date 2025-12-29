@@ -4,12 +4,19 @@ import './Header.css'
 interface HeaderProps {
   onNewTransaction: () => void
   onAdminMode: () => void
-  selectedMonth: string
-  onMonthChange: (month: string) => void
-  availableMonths: string[]
+  selectedMonth: number
+  selectedYear: number
+  onMonthChange: (month: number) => void
+  onYearChange: (year: number) => void
+  availableYears: number[]
 }
 
-const Header = ({ onNewTransaction, onAdminMode, selectedMonth, onMonthChange, availableMonths }: HeaderProps) => {
+const Header = ({ onNewTransaction, onAdminMode, selectedMonth, selectedYear, onMonthChange, onYearChange, availableYears }: HeaderProps) => {
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ]
+
   return (
     <header className="header">
       <div className="header-content">
@@ -24,22 +31,28 @@ const Header = ({ onNewTransaction, onAdminMode, selectedMonth, onMonthChange, a
               <span>Nova Transação</span>
             </button>
           </div>
-          <div className="month-selector-header">
+          <div className="month-year-selector">
             <select
               value={selectedMonth}
-              onChange={(e) => onMonthChange(e.target.value)}
+              onChange={(e) => onMonthChange(parseInt(e.target.value))}
               className="month-select-header"
             >
-              <option value="">Todos os meses</option>
-              {availableMonths.map(month => {
-                const [year, monthNum] = month.split('-')
-                const monthName = new Date(parseInt(year), parseInt(monthNum) - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-                return (
-                  <option key={month} value={month}>
-                    {monthName.charAt(0).toUpperCase() + monthName.slice(1)}
-                  </option>
-                )
-              })}
+              {monthNames.map((name, index) => (
+                <option key={index} value={index + 1}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={selectedYear}
+              onChange={(e) => onYearChange(parseInt(e.target.value))}
+              className="year-select-header"
+            >
+              {availableYears.map(year => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
             </select>
           </div>
           <button className="icon-button">
