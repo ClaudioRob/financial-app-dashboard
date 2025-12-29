@@ -135,7 +135,11 @@ function App() {
       <main className="main-content">
         <StatsCards balance={filteredData.balance} />
         <div className="dashboard-grid">
-          <ChartsSection charts={data.charts} />
+          <ChartsSection 
+            charts={data.charts} 
+            transactions={data.transactions}
+            selectedMonth={selectedMonth}
+          />
           <RecentTransactions transactions={filteredData.transactions} />
         </div>
       </main>

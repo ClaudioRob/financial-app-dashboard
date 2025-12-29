@@ -12,12 +12,16 @@
   padding: 1.5rem;
   transition: all 0.3s ease;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(27, 50, 95, 0.06);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .stat-card:hover {
   transform: translateY(-4px);
-  border-color: var(--border-light);
-  box-shadow: var(--shadow-lg);
+  border-color: var(--primary-light);
+  box-shadow: 0 8px 24px rgba(74, 143, 231, 0.15);
+  background: rgba(30, 46, 73, 0.6);
 }
 
 .stat-card-header {
@@ -44,12 +48,12 @@
 }
 
 .trend-up {
-  color: var(--success);
+  color: #10b981;
   background: rgba(16, 185, 129, 0.1);
 }
 
 .trend-down {
-  color: var(--error);
+  color: #ef4444;
   background: rgba(239, 68, 68, 0.1);
 }
 

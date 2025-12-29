@@ -4,6 +4,9 @@
   border-radius: 16px;
   padding: 1.5rem;
   height: fit-content;
+  box-shadow: 0 2px 8px rgba(27, 50, 95, 0.06);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 .transactions-header {
