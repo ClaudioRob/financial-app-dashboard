@@ -270,20 +270,25 @@ app.put('/api/transactions/:id', (req: Request, res: Response) => {
   const idParam = req.params.id
   // Tentar converter para número, mas aceitar string também
   const id = isNaN(Number(idParam)) ? idParam : parseInt(idParam)
-  const { date, description, amount, type, category } = req.body
+  const updateData = req.body
   
   const index = transactions.findIndex(t => String(t.id) === String(id))
   if (index === -1) {
     return res.status(404).json({ error: 'Transação não encontrada' })
   }
   
+  // Atualizar todos os campos enviados, mantendo os existentes
   transactions[index] = {
     ...transactions[index],
-    date: date ? normalizeString(date) : transactions[index].date,
-    description: description ? normalizeString(description) : transactions[index].description,
-    amount: amount !== undefined ? (type === 'expense' ? -Math.abs(amount) : Math.abs(amount)) : transactions[index].amount,
-    type: type || transactions[index].type,
-    category: category ? normalizeString(category) : transactions[index].category,
+    ...updateData,
+    id: transactions[index].id, // Preservar o ID original
+    // Normalizar campos de string se fornecidos
+    date: updateData.date ? normalizeString(updateData.date) : transactions[index].date,
+    Data: updateData.Data ? normalizeString(updateData.Data) : (updateData.date ? normalizeString(updateData.date) : transactions[index].Data),
+    description: updateData.description ? normalizeString(updateData.description) : transactions[index].description,
+    Item: updateData.Item ? normalizeString(updateData.Item) : transactions[index].Item,
+    category: updateData.category ? normalizeString(updateData.category) : transactions[index].category,
+    Categoria: updateData.Categoria ? normalizeString(updateData.Categoria) : transactions[index].Categoria,
   }
   
   saveTransactions(transactions, nextId)

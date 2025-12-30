@@ -37,12 +37,9 @@ const CashFlow = ({ transactions, selectedMonth, selectedYear }: CashFlowProps) 
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-'
-    const date = new Date(dateString)
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })
+    // Adicionar 'T00:00:00' para forçar interpretação como hora local
+    const [year, month, day] = dateString.split('-')
+    return `${day}/${month}/${year}`
   }
 
   // Função para obter o número da semana do ano

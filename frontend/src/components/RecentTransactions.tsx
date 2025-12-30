@@ -23,12 +23,10 @@ const RecentTransactions = ({ transactions }: RecentTransactionsProps) => {
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })
+    if (!dateString) return '-'
+    // Evitar problema de timezone fazendo parse manual
+    const [year, month, day] = dateString.split('-')
+    return `${day}/${month}/${year}`
   }
 
   return (
