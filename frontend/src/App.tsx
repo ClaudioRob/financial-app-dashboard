@@ -6,7 +6,6 @@ import ChartsSection from './components/ChartsSection'
 import RecentTransactions from './components/RecentTransactions'
 import TransactionModal from './components/TransactionModal'
 import AdminDashboard from './components/AdminDashboard'
-import CashFlow from './components/CashFlow'
 import { fetchDashboardData } from './services/api'
 
 export interface DashboardData {
@@ -38,8 +37,8 @@ function App() {
   const [isAdminMode, setIsAdminMode] = useState(false)
   
   // Definir mês e ano serão configurados após carregar os dados
-  const [selectedMonth, setSelectedMonth] = useState<number | null>(null)
-  const [selectedYear, setSelectedYear] = useState<number | null>(null)
+  const [selectedMonth, setSelectedMonth] = useState<number | 'all' | null>(null)
+  const [selectedYear, setSelectedYear] = useState<number | 'all' | null>(null)
 
   useEffect(() => {
     loadData()
@@ -126,7 +125,11 @@ function App() {
       const transactionDate = new Date(t.date)
       const transactionMonth = transactionDate.getMonth() + 1
       const transactionYear = transactionDate.getFullYear()
-      return transactionMonth === selectedMonth && transactionYear === selectedYear
+      
+      const yearMatches = selectedYear === 'all' || transactionYear === selectedYear
+      const monthMatches = selectedMonth === 'all' || transactionMonth === selectedMonth
+      
+      return yearMatches && monthMatches
     })
   }
 
@@ -154,7 +157,6 @@ function App() {
   return (
     <div className="app">
       <Header
-        onNewTransaction={() => setIsTransactionModalOpen(true)}
         onAdminMode={() => setIsAdminMode(true)}
         selectedMonth={selectedMonth}
         selectedYear={selectedYear}
@@ -168,15 +170,11 @@ function App() {
           <ChartsSection 
             charts={data.charts} 
             transactions={data.transactions}
-            selectedMonth={`${selectedYear}-${String(selectedMonth).padStart(2, '0')}`}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
           />
           <RecentTransactions transactions={filteredData.transactions} />
         </div>
-        <CashFlow 
-          transactions={data.transactions}
-          selectedMonth={selectedMonth}
-          selectedYear={selectedYear}
-        />
       </main>
       
       <TransactionModal

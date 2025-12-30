@@ -9,7 +9,7 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 1.5rem;
+  padding: 1.2rem;
   transition: all 0.3s ease;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(27, 50, 95, 0.06);
@@ -28,12 +28,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem;
 }
 
 .stat-icon {
-  width: 48px;
-  height: 48px;
+  width: 38px;
+  height: 38px;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -60,7 +60,7 @@
 .stat-card-body {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
 .stat-title {
@@ -72,7 +72,7 @@
 }
 
 .stat-value {
-  font-size: 1.75rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--text-primary);
   margin: 0;

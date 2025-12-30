@@ -1,17 +1,16 @@
-import { Bell, Settings, Plus } from './icons'
+import { Bell, Settings } from './icons'
 import './Header.css'
 
 interface HeaderProps {
-  onNewTransaction: () => void
   onAdminMode: () => void
-  selectedMonth: number
-  selectedYear: number
-  onMonthChange: (month: number) => void
-  onYearChange: (year: number) => void
+  selectedMonth: number | 'all'
+  selectedYear: number | 'all'
+  onMonthChange: (month: number | 'all') => void
+  onYearChange: (year: number | 'all') => void
   availableYears: number[]
 }
 
-const Header = ({ onNewTransaction, onAdminMode, selectedMonth, selectedYear, onMonthChange, onYearChange, availableYears }: HeaderProps) => {
+const Header = ({ onAdminMode, selectedMonth, selectedYear, onMonthChange, onYearChange, availableYears }: HeaderProps) => {
   const monthNames = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -25,18 +24,13 @@ const Header = ({ onNewTransaction, onAdminMode, selectedMonth, selectedYear, on
           {/* <span className="logo-subtitle">Dashboard Financeiro</span> */}
         </div>
         <div className="header-right">
-          <div className="header-actions">
-            <button className="action-button primary" onClick={onNewTransaction} title="Nova Transação">
-              <Plus size={18} />
-              <span>Nova Transação</span>
-            </button>
-          </div>
           <div className="month-year-selector">
             <select
               value={selectedMonth}
-              onChange={(e) => onMonthChange(parseInt(e.target.value))}
+              onChange={(e) => onMonthChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
               className="month-select-header"
             >
+              <option value="all">Todos</option>
               {monthNames.map((name, index) => (
                 <option key={index} value={index + 1}>
                   {name}
@@ -45,9 +39,10 @@ const Header = ({ onNewTransaction, onAdminMode, selectedMonth, selectedYear, on
             </select>
             <select
               value={selectedYear}
-              onChange={(e) => onYearChange(parseInt(e.target.value))}
+              onChange={(e) => onYearChange(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
               className="year-select-header"
             >
+              <option value="all">Todos</option>
               {availableYears.map(year => (
                 <option key={year} value={year}>
                   {year}
