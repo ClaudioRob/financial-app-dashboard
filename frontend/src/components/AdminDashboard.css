@@ -309,6 +309,15 @@
   max-width: 150px;
 }
 
+/* Aumentar largura da coluna Item */
+.admin-table th:nth-child(8),
+.admin-table td:nth-child(8) {
+  max-width: 300px;
+  min-width: 200px;
+  white-space: normal;
+  word-wrap: break-word;
+}
+
 .admin-table tbody tr:hover {
   background: var(--bg-tertiary);
 }
