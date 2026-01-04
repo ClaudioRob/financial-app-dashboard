@@ -105,6 +105,7 @@ interface Transaction {
   amount: number
   type: 'income' | 'expense'
   category: string
+  status?: 'P' | 'R' | 'N'  // P = Previsto, R = Realizado, N = Não Realizado
   // Campos adicionais para compatibilidade com plano de contas
   // 10 colunas da planilha: Id_Item, Natureza, Tipo, Categoria, SubCategoria, Operação, Origem|Destino, Item, Data, Valor
   Id_Item?: number | string
@@ -139,6 +140,15 @@ let transactions: Transaction[] = loadedData.transactions
 let nextId = loadedData.nextId
 
 let accountPlan: Map<number | string, AccountPlan> = loadAccountPlan()
+
+// Função helper para determinar status automático
+const getAutoStatus = (date: string): 'P' | 'R' => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const transactionDate = new Date(date)
+  transactionDate.setHours(0, 0, 0, 0)
+  return transactionDate > today ? 'P' : 'R'
+}
 
 // Funções auxiliares
 const calculateBalance = (transactions: Transaction[]) => {
@@ -248,6 +258,18 @@ app.post('/api/transactions', (req: Request, res: Response) => {
     amount: type === 'expense' ? -Math.abs(amount) : Math.abs(amount),
     type,
     category: normalizeString(category),
+    status: req.body.status || getAutoStatus(date),
+    // Incluir campos adicionais do plano de contas
+    Id_Item: req.body.Id_Item ? normalizeString(req.body.Id_Item) : undefined,
+    Natureza: req.body.Natureza ? normalizeString(req.body.Natureza) : undefined,
+    Tipo: req.body.Tipo ? normalizeString(req.body.Tipo) : undefined,
+    Categoria: req.body.Categoria ? normalizeString(req.body.Categoria) : undefined,
+    SubCategoria: req.body.SubCategoria ? normalizeString(req.body.SubCategoria) : undefined,
+    Operação: req.body.Operação ? normalizeString(req.body.Operação) : undefined,
+    OrigemDestino: req.body.OrigemDestino ? normalizeString(req.body.OrigemDestino) : undefined,
+    Item: req.body.Item ? normalizeString(req.body.Item) : undefined,
+    Data: req.body.Data ? normalizeString(req.body.Data) : normalizeString(date),
+    Valor: req.body.Valor !== undefined ? req.body.Valor : Math.abs(amount),
   }
   
   transactions.push(transaction)
@@ -277,11 +299,16 @@ app.put('/api/transactions/:id', (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Transação não encontrada' })
   }
   
+  // Determinar a data final para cálculo de status
+  const finalDate = updateData.Data || updateData.date || transactions[index].Data || transactions[index].date
+  
   // Atualizar todos os campos enviados, mantendo os existentes
   transactions[index] = {
     ...transactions[index],
     ...updateData,
     id: transactions[index].id, // Preservar o ID original
+    // Atualizar status: usar o fornecido ou recalcular baseado na data
+    status: updateData.status !== undefined ? updateData.status : getAutoStatus(finalDate),
     // Normalizar campos de string se fornecidos
     date: updateData.date ? normalizeString(updateData.date) : transactions[index].date,
     Data: updateData.Data ? normalizeString(updateData.Data) : (updateData.date ? normalizeString(updateData.date) : transactions[index].Data),

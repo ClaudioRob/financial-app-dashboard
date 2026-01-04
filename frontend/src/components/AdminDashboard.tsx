@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { X, Edit2, Trash2, Save, Plus, Upload, ChevronUp, ChevronDown } from './icons'
+import { X, Edit2, Trash2, Save, Plus, Upload, ChevronUp, ChevronDown, ThumbsUp, ThumbsDown, Clock } from './icons'
 import { fetchAccountPlan, importAccountPlan, type AccountPlan, clearAccountPlan } from '../services/api'
 import { fetchDashboardData, updateTransaction, deleteTransaction, clearAllData } from '../services/api'
 import ImportModal from './ImportModal'
@@ -11,6 +11,54 @@ interface AdminDashboardProps {
 
 type SortField = string
 type SortDirection = 'asc' | 'desc' | null
+
+// Função helper para determinar status automático
+const getAutoStatus = (date: string): 'P' | 'R' => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const transactionDate = new Date(date)
+  transactionDate.setHours(0, 0, 0, 0)
+  return transactionDate > today ? 'P' : 'R'
+}
+
+// Função helper para obter cor do status
+const getStatusColor = (status: 'P' | 'R' | 'N'): string => {
+  switch (status) {
+    case 'P': return '#3498db' // Azul - Previsto
+    case 'R': return '#27ae60' // Verde - Realizado
+    case 'N': return '#e74c3c' // Vermelho - Não Realizado
+    default: return '#95a5a6' // Cinza - Padrão
+  }
+}
+
+// Função helper para obter próximo status no ciclo
+const getNextStatus = (currentStatus: 'P' | 'R' | 'N' | undefined, date: string): 'P' | 'R' | 'N' => {
+  const current = currentStatus || getAutoStatus(date)
+  // Ciclo: P -> R -> N -> P
+  if (current === 'P') return 'R'
+  if (current === 'R') return 'N'
+  return 'P'
+}
+
+// Função helper para obter ícone do status
+const getStatusIcon = (status: 'P' | 'R' | 'N', size: number = 16) => {
+  switch (status) {
+    case 'R': return <ThumbsUp size={size} />
+    case 'N': return <ThumbsDown size={size} />
+    case 'P': return <Clock size={size} />
+    default: return <Clock size={size} />
+  }
+}
+
+// Função helper para formatar valores em BRL
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(Math.abs(value))
+}
 
 const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
   const [activeTab, setActiveTab] = useState<'account-plan' | 'transactions'>('account-plan')
@@ -115,32 +163,71 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
   }
 
   const handleAddTransaction = () => {
-    const newTransaction = {
-      id: `NEW_${Date.now()}`,
-      Id_Item: '',
-      Natureza: '',
-      Tipo: '',
-      Categoria: '',
-      SubCategoria: '',
-      Operação: '',
-      OrigemDestino: '',
-      Item: '',
-      Data: new Date().toISOString().split('T')[0],
-      Valor: 0,
-      date: new Date().toISOString().split('T')[0],
-      description: '',
-      amount: 0,
-      type: 'expense' as 'income' | 'expense',
-      category: ''
+    try {
+      const newDate = new Date().toISOString().split('T')[0]
+      const newId = `NEW_${Date.now()}`
+      
+      const newTransaction = {
+        id: newId,
+        Id_Item: '',
+        Natureza: '',
+        Tipo: '',
+        Categoria: '',
+        SubCategoria: '',
+        Operação: '',
+        OrigemDestino: '',
+        Item: '',
+        Data: newDate,
+        Valor: 0,
+        date: newDate,
+        description: '',
+        amount: 0,
+        type: 'expense' as 'income' | 'expense',
+        category: '',
+        status: 'R' as 'P' | 'R' | 'N',
+      }
+      
+      setTransactions([newTransaction, ...transactions])
+      setEditingId(newId)
+      setEditedTransaction({ ...newTransaction })
+    } catch (error) {
+      console.error('Erro ao adicionar transação:', error)
+      alert('Erro ao adicionar lançamento: ' + error)
     }
-    setTransactions([newTransaction, ...transactions])
-    setEditingId(newTransaction.id)
-    setEditedTransaction({ ...newTransaction })
   }
 
   const handleEditTransaction = (transaction: any) => {
     setEditingId(transaction.id)
     setEditedTransaction({ ...transaction })
+  }
+
+  const handleIdItemChange = (idItem: string) => {
+    // Se o campo não estiver vazio, buscar no plano de contas
+    if (idItem.trim() !== '') {
+      const account = accountPlan.find(acc => String(acc.ID_Conta) === idItem.trim())
+      
+      if (account) {
+        // Preencher automaticamente os campos do plano de contas
+        setEditedTransaction({
+          ...editedTransaction,
+          Id_Item: idItem,
+          Natureza: account.Natureza || '',
+          Tipo: account.Tipo || '',
+          Categoria: account.Categoria || '',
+          SubCategoria: account.SubCategoria || '',
+          Item: account.Conta || '', // Usar o campo Conta como descrição do Item
+          category: account.Categoria || '',
+          description: account.Conta || '',
+        })
+      } else {
+        // Notificar que o item não existe
+        setEditedTransaction({ ...editedTransaction, Id_Item: idItem })
+        alert(`Item ${idItem} não encontrado no plano de contas. Por favor, verifique o código ou adicione manualmente os dados.`)
+      }
+    } else {
+      // Apenas atualizar o Id_Item se estiver vazio
+      setEditedTransaction({ ...editedTransaction, Id_Item: idItem })
+    }
   }
 
   const handleSaveTransaction = async () => {
@@ -160,6 +247,7 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
             amount: editedTransaction.Valor || editedTransaction.amount,
             type: editedTransaction.Natureza?.toLowerCase().includes('receita') ? 'income' : 'expense',
             category: editedTransaction.Categoria || editedTransaction.category,
+            status: editedTransaction.status, // Incluir status
             Id_Item: editedTransaction.Id_Item,
             Natureza: editedTransaction.Natureza,
             Tipo: editedTransaction.Tipo,
@@ -363,24 +451,22 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
   const filteredTransactions = useMemo(() => {
     let filtered = sortedTransactions
     
-    // Filtro por coluna específica
-    if (transactionFilterColumn && transactionFilterColumn !== 'Data') {
-      if (transactionFilterValue) {
-        filtered = filtered.filter((transaction: any) => {
-          let columnValue = transaction[transactionFilterColumn]
-          
-          // Tratamento especial para Valor
-          if (transactionFilterColumn === 'Valor') {
-            columnValue = String(transaction.Valor || transaction.amount || '')
-          }
-          
-          return String(columnValue || '').toLowerCase().includes(transactionFilterValue.toLowerCase())
-        })
-      }
+    // Filtro por coluna específica (exceto Data)
+    if (transactionFilterColumn && transactionFilterColumn !== 'Data' && transactionFilterValue) {
+      filtered = filtered.filter((transaction: any) => {
+        let columnValue = transaction[transactionFilterColumn]
+        
+        // Tratamento especial para Valor
+        if (transactionFilterColumn === 'Valor') {
+          columnValue = String(transaction.Valor || transaction.amount || '')
+        }
+        
+        return String(columnValue || '').toLowerCase().includes(transactionFilterValue.toLowerCase())
+      })
     }
     
-    // Filtro especial por período de data
-    if (transactionFilterColumn === 'Data' && (transactionDateFrom || transactionDateTo)) {
+    // Filtro por período de data (aplica sempre que houver valores de data definidos)
+    if (transactionDateFrom || transactionDateTo) {
       filtered = filtered.filter((transaction: any) => {
         const transactionDate = transaction.Data || transaction.date || ''
         
@@ -396,8 +482,16 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
       })
     }
     
+    // Sempre incluir a transação em edição, mesmo que não passe pelos filtros
+    if (editingId && !filtered.find((t: any) => t.id === editingId)) {
+      const editingTransaction = sortedTransactions.find((t: any) => t.id === editingId)
+      if (editingTransaction) {
+        filtered = [editingTransaction, ...filtered]
+      }
+    }
+    
     return filtered
-  }, [sortedTransactions, transactionFilterColumn, transactionFilterValue, transactionDateFrom, transactionDateTo])
+  }, [sortedTransactions, transactionFilterColumn, transactionFilterValue, transactionDateFrom, transactionDateTo, editingId])
 
   const AccountSortIcon = ({ field }: { field: string }) => {
     if (accountSortField !== field) {
@@ -625,8 +719,6 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                   onChange={(e) => {
                     setTransactionFilterColumn(e.target.value)
                     setTransactionFilterValue('')
-                    setTransactionDateFrom('')
-                    setTransactionDateTo('')
                   }}
                   className="filter-select"
                 >
@@ -651,27 +743,25 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                     className="filter-input-header"
                   />
                 )}
-                {transactionFilterColumn === 'Data' && (
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      type="date"
-                      placeholder="De"
-                      value={transactionDateFrom}
-                      onChange={(e) => setTransactionDateFrom(e.target.value)}
-                      className="filter-input-header"
-                      style={{ maxWidth: '150px' }}
-                    />
-                    <span style={{ color: 'var(--text-secondary)' }}>até</span>
-                    <input
-                      type="date"
-                      placeholder="Até"
-                      value={transactionDateTo}
-                      onChange={(e) => setTransactionDateTo(e.target.value)}
-                      className="filter-input-header"
-                      style={{ maxWidth: '150px' }}
-                    />
-                  </div>
-                )}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="date"
+                    placeholder="De"
+                    value={transactionDateFrom}
+                    onChange={(e) => setTransactionDateFrom(e.target.value)}
+                    className="filter-input-header"
+                    style={{ maxWidth: '150px' }}
+                  />
+                  <span style={{ color: 'var(--text-secondary)' }}>até</span>
+                  <input
+                    type="date"
+                    placeholder="Até"
+                    value={transactionDateTo}
+                    onChange={(e) => setTransactionDateTo(e.target.value)}
+                    className="filter-input-header"
+                    style={{ maxWidth: '150px' }}
+                  />
+                </div>
                 <button className="btn-add" onClick={handleAddTransaction}>
                   <Plus size={18} />
                   Adicionar Lançamento
@@ -712,6 +802,9 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                     <th className="sortable" onClick={() => handleTransactionSort('Valor')}>
                       Valor <TransactionSortIcon field="Valor" />
                     </th>
+                    <th className="sortable" onClick={() => handleTransactionSort('status')}>
+                      Status <TransactionSortIcon field="status" />
+                    </th>
                     <th>Ações</th>
                   </tr>
                 </thead>
@@ -724,8 +817,10 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                             <input
                               type="text"
                               value={editedTransaction.Id_Item || ''}
-                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Id_Item: e.target.value })}
+                              onChange={(e) => handleIdItemChange(e.target.value)}
+                              onBlur={(e) => handleIdItemChange(e.target.value)}
                               className="admin-input"
+                              placeholder="Código do item"
                             />
                           </td>
                           <td>
@@ -788,7 +883,15 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                             <input
                               type="date"
                               value={editedTransaction.Data || editedTransaction.date || ''}
-                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Data: e.target.value, date: e.target.value })}
+                              onChange={(e) => {
+                                const newDate = e.target.value
+                                setEditedTransaction({ 
+                                  ...editedTransaction, 
+                                  Data: newDate, 
+                                  date: newDate,
+                                  status: getAutoStatus(newDate) // Recalcular status automaticamente ao mudar data
+                                })
+                              }}
                               className="admin-input"
                             />
                           </td>
@@ -803,6 +906,32 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                               }}
                               className="admin-input"
                             />
+                          </td>
+                          <td>
+                            <button 
+                              className="btn-status"
+                              onClick={() => {
+                                const currentDate = editedTransaction.Data || editedTransaction.date
+                                const newStatus = getNextStatus(editedTransaction.status, currentDate)
+                                setEditedTransaction({ ...editedTransaction, status: newStatus })
+                              }}
+                              style={{
+                                backgroundColor: 'transparent',
+                                color: getStatusColor(editedTransaction.status || getAutoStatus(editedTransaction.Data || editedTransaction.date)),
+                                border: `2px solid ${getStatusColor(editedTransaction.status || getAutoStatus(editedTransaction.Data || editedTransaction.date))}`,
+                                padding: '6px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: '36px',
+                                minHeight: '36px'
+                              }}
+                              title={editedTransaction.status === 'P' ? 'Previsto' : editedTransaction.status === 'R' ? 'Realizado' : 'Não Realizado'}
+                            >
+                              {getStatusIcon(editedTransaction.status || getAutoStatus(editedTransaction.Data || editedTransaction.date), 18)}
+                            </button>
                           </td>
                           <td>
                             <button className="btn-save" onClick={handleSaveTransaction}>
@@ -825,7 +954,27 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                           <td>{transaction.Item || '-'}</td>
                           <td>{formatDate(transaction.Data || transaction.date)}</td>
                           <td className={transaction.Natureza?.toLowerCase().includes('receita') ? 'positive' : 'negative'}>
-                            R$ {Math.abs(transaction.Valor || transaction.amount || 0).toFixed(2)}
+                            {formatCurrency(transaction.Valor || transaction.amount || 0)}
+                          </td>
+                          <td>
+                            <span 
+                              className="status-flag"
+                              style={{
+                                backgroundColor: 'transparent',
+                                color: getStatusColor(transaction.status || getAutoStatus(transaction.Data || transaction.date)),
+                                border: `2px solid ${getStatusColor(transaction.status || getAutoStatus(transaction.Data || transaction.date))}`,
+                                padding: '4px',
+                                borderRadius: '6px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: '32px',
+                                minHeight: '32px'
+                              }}
+                              title={(transaction.status || getAutoStatus(transaction.Data || transaction.date)) === 'P' ? 'Previsto' : (transaction.status || getAutoStatus(transaction.Data || transaction.date)) === 'R' ? 'Realizado' : 'Não Realizado'}
+                            >
+                              {getStatusIcon(transaction.status || getAutoStatus(transaction.Data || transaction.date), 16)}
+                            </span>
                           </td>
                           <td>
                             <button className="btn-edit" onClick={() => handleEditTransaction(transaction)}>

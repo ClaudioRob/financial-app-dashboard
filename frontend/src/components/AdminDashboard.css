@@ -384,11 +384,40 @@
 .admin-table td.positive {
   color: #10b981;
   font-weight: 500;
+  text-align: right;
 }
 
 .admin-table td.negative {
   color: #ef4444;
   font-weight: 500;
+  text-align: right;
+}
+
+/* Estilos para botão e flag de status */
+.btn-status {
+  display: inline-flex;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.btn-status:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  opacity: 0.8;
+}
+
+.btn-status:active {
+  transform: scale(0.95);
+}
+
+.status-flag {
+  white-space: nowrap;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.status-flag:hover {
+  transform: scale(1.05);
 }
 
 .loading-admin {
