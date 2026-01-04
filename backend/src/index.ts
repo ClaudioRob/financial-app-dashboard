@@ -258,7 +258,18 @@ app.post('/api/transactions', (req: Request, res: Response) => {
     amount: type === 'expense' ? -Math.abs(amount) : Math.abs(amount),
     type,
     category: normalizeString(category),
-    status: req.body.status || getAutoStatus(date), // Usar status fornecido ou calcular automaticamente
+    status: req.body.status || getAutoStatus(date),
+    // Incluir campos adicionais do plano de contas
+    Id_Item: req.body.Id_Item ? normalizeString(req.body.Id_Item) : undefined,
+    Natureza: req.body.Natureza ? normalizeString(req.body.Natureza) : undefined,
+    Tipo: req.body.Tipo ? normalizeString(req.body.Tipo) : undefined,
+    Categoria: req.body.Categoria ? normalizeString(req.body.Categoria) : undefined,
+    SubCategoria: req.body.SubCategoria ? normalizeString(req.body.SubCategoria) : undefined,
+    Operação: req.body.Operação ? normalizeString(req.body.Operação) : undefined,
+    OrigemDestino: req.body.OrigemDestino ? normalizeString(req.body.OrigemDestino) : undefined,
+    Item: req.body.Item ? normalizeString(req.body.Item) : undefined,
+    Data: req.body.Data ? normalizeString(req.body.Data) : normalizeString(date),
+    Valor: req.body.Valor !== undefined ? req.body.Valor : Math.abs(amount),
   }
   
   transactions.push(transaction)

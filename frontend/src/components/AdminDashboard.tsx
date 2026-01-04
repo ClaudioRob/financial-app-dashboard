@@ -163,34 +163,71 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
   }
 
   const handleAddTransaction = () => {
-    const newDate = new Date().toISOString().split('T')[0]
-    const newTransaction = {
-      id: `NEW_${Date.now()}`,
-      Id_Item: '',
-      Natureza: '',
-      Tipo: '',
-      Categoria: '',
-      SubCategoria: '',
-      Operação: '',
-      OrigemDestino: '',
-      Item: '',
-      Data: newDate,
-      Valor: 0,
-      date: newDate,
-      description: '',
-      amount: 0,
-      type: 'expense' as 'income' | 'expense',
-      category: '',
-      status: getAutoStatus(newDate), // Calcular status automaticamente
+    try {
+      const newDate = new Date().toISOString().split('T')[0]
+      const newId = `NEW_${Date.now()}`
+      
+      const newTransaction = {
+        id: newId,
+        Id_Item: '',
+        Natureza: '',
+        Tipo: '',
+        Categoria: '',
+        SubCategoria: '',
+        Operação: '',
+        OrigemDestino: '',
+        Item: '',
+        Data: newDate,
+        Valor: 0,
+        date: newDate,
+        description: '',
+        amount: 0,
+        type: 'expense' as 'income' | 'expense',
+        category: '',
+        status: 'R' as 'P' | 'R' | 'N',
+      }
+      
+      setTransactions([newTransaction, ...transactions])
+      setEditingId(newId)
+      setEditedTransaction({ ...newTransaction })
+    } catch (error) {
+      console.error('Erro ao adicionar transação:', error)
+      alert('Erro ao adicionar lançamento: ' + error)
     }
-    setTransactions([newTransaction, ...transactions])
-    setEditingId(newTransaction.id)
-    setEditedTransaction({ ...newTransaction })
   }
 
   const handleEditTransaction = (transaction: any) => {
     setEditingId(transaction.id)
     setEditedTransaction({ ...transaction })
+  }
+
+  const handleIdItemChange = (idItem: string) => {
+    // Se o campo não estiver vazio, buscar no plano de contas
+    if (idItem.trim() !== '') {
+      const account = accountPlan.find(acc => String(acc.ID_Conta) === idItem.trim())
+      
+      if (account) {
+        // Preencher automaticamente os campos do plano de contas
+        setEditedTransaction({
+          ...editedTransaction,
+          Id_Item: idItem,
+          Natureza: account.Natureza || '',
+          Tipo: account.Tipo || '',
+          Categoria: account.Categoria || '',
+          SubCategoria: account.SubCategoria || '',
+          Item: account.Conta || '', // Usar o campo Conta como descrição do Item
+          category: account.Categoria || '',
+          description: account.Conta || '',
+        })
+      } else {
+        // Notificar que o item não existe
+        setEditedTransaction({ ...editedTransaction, Id_Item: idItem })
+        alert(`Item ${idItem} não encontrado no plano de contas. Por favor, verifique o código ou adicione manualmente os dados.`)
+      }
+    } else {
+      // Apenas atualizar o Id_Item se estiver vazio
+      setEditedTransaction({ ...editedTransaction, Id_Item: idItem })
+    }
   }
 
   const handleSaveTransaction = async () => {
@@ -445,8 +482,16 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
       })
     }
     
+    // Sempre incluir a transação em edição, mesmo que não passe pelos filtros
+    if (editingId && !filtered.find((t: any) => t.id === editingId)) {
+      const editingTransaction = sortedTransactions.find((t: any) => t.id === editingId)
+      if (editingTransaction) {
+        filtered = [editingTransaction, ...filtered]
+      }
+    }
+    
     return filtered
-  }, [sortedTransactions, transactionFilterColumn, transactionFilterValue, transactionDateFrom, transactionDateTo])
+  }, [sortedTransactions, transactionFilterColumn, transactionFilterValue, transactionDateFrom, transactionDateTo, editingId])
 
   const AccountSortIcon = ({ field }: { field: string }) => {
     if (accountSortField !== field) {
@@ -772,8 +817,10 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                             <input
                               type="text"
                               value={editedTransaction.Id_Item || ''}
-                              onChange={(e) => setEditedTransaction({ ...editedTransaction, Id_Item: e.target.value })}
+                              onChange={(e) => handleIdItemChange(e.target.value)}
+                              onBlur={(e) => handleIdItemChange(e.target.value)}
                               className="admin-input"
+                              placeholder="Código do item"
                             />
                           </td>
                           <td>
