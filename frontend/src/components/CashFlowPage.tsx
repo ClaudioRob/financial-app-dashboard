@@ -11,6 +11,8 @@ interface Transaction {
   category: string
   Categoria?: string
   SubCategoria?: string
+  Id_Item?: string | number
+  Item?: string
 }
 
 interface CashFlowPageProps {
@@ -112,9 +114,13 @@ const CashFlowPage = ({ transactions, onClose, selectedYear: initialYear }: Cash
 
       descMap.forEach((data, description) => {
         const monthlyValues = new Array(12).fill(0)
+        let itemCode = ''
         data.items.forEach(item => {
           const month = new Date(item.date).getMonth()
           monthlyValues[month] += Math.abs(item.amount)
+          if (!itemCode && item.Id_Item) {
+            itemCode = String(item.Id_Item)
+          }
         })
         
         monthlyValues.forEach((val, idx) => {
@@ -123,6 +129,7 @@ const CashFlowPage = ({ transactions, onClose, selectedYear: initialYear }: Cash
 
         itemsList.push({
           description,
+          itemCode,
           monthlyValues,
           total: monthlyValues.reduce((sum, val) => sum + val, 0)
         })
@@ -158,9 +165,13 @@ const CashFlowPage = ({ transactions, onClose, selectedYear: initialYear }: Cash
 
       descMap.forEach((data, description) => {
         const monthlyValues = new Array(12).fill(0)
+        let itemCode = ''
         data.items.forEach(item => {
           const month = new Date(item.date).getMonth()
           monthlyValues[month] += Math.abs(item.amount)
+          if (!itemCode && item.Id_Item) {
+            itemCode = String(item.Id_Item)
+          }
         })
         
         monthlyValues.forEach((val, idx) => {
@@ -169,6 +180,7 @@ const CashFlowPage = ({ transactions, onClose, selectedYear: initialYear }: Cash
 
         itemsList.push({
           description,
+          itemCode,
           monthlyValues,
           total: monthlyValues.reduce((sum, val) => sum + val, 0)
         })
@@ -278,13 +290,13 @@ const CashFlowPage = ({ transactions, onClose, selectedYear: initialYear }: Cash
                 <tr className="category-row income-row">
                   <td className="category-cell">
                     <button 
-                      className="expand-button"
+                      className="expand-toggle"
                       onClick={() => toggleCategory(`income-${categoryData.category}`)}
                     >
                       {expandedCategories.has(`income-${categoryData.category}`) ? 
                         <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     </button>
-                    {categoryData.category}
+                    <strong>{categoryData.category}</strong>
                   </td>
                   {categoryData.categoryMonthlyTotals.map((value, index) => (
                     <td key={index} className="value-cell income-value">
@@ -298,7 +310,7 @@ const CashFlowPage = ({ transactions, onClose, selectedYear: initialYear }: Cash
                 {expandedCategories.has(`income-${categoryData.category}`) && 
                   categoryData.items.map((item: any, itemIndex: number) => (
                     <tr key={`income-item-${catIndex}-${itemIndex}`} className="item-row">
-                      <td className="item-cell">&nbsp;&nbsp;&nbsp;&nbsp;↳ {item.description}</td>
+                      <td className="item-cell">&nbsp;&nbsp;&nbsp;&nbsp;↳ {item.itemCode ? `${item.itemCode} | ${item.description}` : item.description}</td>
                       {item.monthlyValues.map((value: number, idx: number) => (
                         <td key={idx} className="value-cell">
                           {value > 0 ? formatCurrency(value) : '-'}
@@ -335,13 +347,13 @@ const CashFlowPage = ({ transactions, onClose, selectedYear: initialYear }: Cash
                 <tr className="category-row expense-row">
                   <td className="category-cell">
                     <button 
-                      className="expand-button"
+                      className="expand-toggle"
                       onClick={() => toggleCategory(`expense-${categoryData.category}`)}
                     >
                       {expandedCategories.has(`expense-${categoryData.category}`) ? 
                         <ChevronDown size={16} /> : <ChevronRight size={16} />}
                     </button>
-                    {categoryData.category}
+                    <strong>{categoryData.category}</strong>
                   </td>
                   {categoryData.categoryMonthlyTotals.map((value, index) => (
                     <td key={index} className="value-cell expense-value">
@@ -355,7 +367,7 @@ const CashFlowPage = ({ transactions, onClose, selectedYear: initialYear }: Cash
                 {expandedCategories.has(`expense-${categoryData.category}`) && 
                   categoryData.items.map((item: any, itemIndex: number) => (
                     <tr key={`expense-item-${catIndex}-${itemIndex}`} className="item-row">
-                      <td className="item-cell">&nbsp;&nbsp;&nbsp;&nbsp;↳ {item.description}</td>
+                      <td className="item-cell">&nbsp;&nbsp;&nbsp;&nbsp;↳ {item.itemCode ? `${item.itemCode} | ${item.description}` : item.description}</td>
                       {item.monthlyValues.map((value: number, idx: number) => (
                         <td key={idx} className="value-cell">
                           {value > 0 ? formatCurrency(value) : '-'}

@@ -52,7 +52,15 @@ const Header = ({ onAdminMode, onCashFlow, selectedMonth, selectedYear, onMonthC
             </select>
           </div>
           {onCashFlow && (
-            <button className="action-button secondary" onClick={onCashFlow} title="Fluxo de Caixa">
+            <button 
+              className="action-button secondary" 
+              onClick={() => {
+                // Abrir Fluxo de Caixa em nova aba
+                const url = window.location.href.split('?')[0] + '?page=cashflow'
+                window.open(url, '_blank', 'noopener,noreferrer')
+              }} 
+              title="Fluxo de Caixa"
+            >
               <span>Fluxo de Caixa</span>
             </button>
           )}

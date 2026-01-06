@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { X, Upload } from './icons'
-import { importTransactions, importAccountPlan, type AccountPlan } from '../services/api'
+import { importTransactions, importAccountPlan, fetchAccountPlan, type AccountPlan } from '../services/api'
 import './ImportModal.css'
 
 interface ImportModalProps {
@@ -400,6 +400,53 @@ const ImportModal = ({ isOpen, onClose, onSuccess }: ImportModalProps) => {
         }
 
         console.log('Enviando transações para o backend...', transactions.slice(0, 3))
+
+        // Validar códigos contra o plano de contas antes de enviar
+        if (!skipValidation) {
+          console.log('Validando códigos contra o plano de contas...')
+          try {
+            const accountPlanData = await fetchAccountPlan()
+            console.log('Plano de contas carregado:', accountPlanData.length, 'contas')
+            
+            if (accountPlanData.length === 0) {
+              throw new Error('Plano de contas vazio. Importe o plano de contas antes de importar lançamentos.')
+            }
+            
+            // Criar set com todos os IDs válidos do plano de contas
+            const validIds = new Set(accountPlanData.map(acc => String(acc.ID_Conta).trim()))
+            console.log('IDs válidos no plano de contas:', Array.from(validIds).slice(0, 10))
+            
+            // Verificar se todos os Id_Item existem no plano de contas
+            const invalidCodes: Array<{line: number, code: string}> = []
+            transactions.forEach((t, index) => {
+              if (t.Id_Item !== undefined && t.Id_Item !== null && t.Id_Item !== '') {
+                const idItemStr = String(t.Id_Item).trim()
+                if (idItemStr !== '' && !validIds.has(idItemStr)) {
+                  invalidCodes.push({ line: index + 2, code: idItemStr }) // +2 porque linha 1 é header
+                }
+              }
+            })
+            
+            if (invalidCodes.length > 0) {
+              console.error('Códigos inválidos encontrados:', invalidCodes)
+              const uniqueCodes = [...new Set(invalidCodes.map(ic => ic.code))]
+              const errorMsg = `❌ Encontrados ${invalidCodes.length} lançamento(s) com código(s) não cadastrado(s) no plano de contas:\n\n` +
+                `Códigos inválidos: ${uniqueCodes.join(', ')}\n\n` +
+                `Primeiras ocorrências:\n${invalidCodes.slice(0, 10).map(ic => `  • Linha ${ic.line}: código "${ic.code}"`).join('\n')}` +
+                `${invalidCodes.length > 10 ? `\n  ... e mais ${invalidCodes.length - 10} ocorrência(s)` : ''}\n\n` +
+                `💡 Por favor, corrija o arquivo adicionando estes códigos ao plano de contas ou atualize os códigos dos lançamentos.`
+              throw new Error(errorMsg)
+            }
+            
+            console.log('✓ Todos os códigos são válidos!')
+          } catch (err: any) {
+            if (err.message.includes('Encontrados') || err.message.includes('Plano de contas vazio')) {
+              throw err // Re-lançar erro de validação
+            }
+            console.warn('Erro ao buscar plano de contas:', err)
+            throw new Error('Erro ao validar códigos: ' + err.message)
+          }
+        }
 
         const result = await importTransactions(transactions, !skipValidation)
         console.log('Resultado da importação:', result)

@@ -100,6 +100,58 @@ const ChartsSection = ({ charts, transactions, selectedMonth, selectedYear }: Ch
     })
   }, [transactions, selectedYear])
 
+  // Calcular dados de categorias agrupando receitas e despesas separadamente
+  const categoriesData = useMemo(() => {
+    const incomeMap = new Map<string, number>()
+    const expenseMap = new Map<string, number>()
+    
+    // Filtrar transações por mês e ano se houver seleção
+    let filteredTransactions = transactions
+    
+    if (selectedMonth && selectedMonth !== 'all' && selectedYear && selectedYear !== 'all') {
+      filteredTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date)
+        const transactionMonth = transactionDate.getMonth() + 1
+        const transactionYear = transactionDate.getFullYear()
+        return transactionMonth === selectedMonth && transactionYear === selectedYear
+      })
+    } else if (selectedYear && selectedYear !== 'all') {
+      filteredTransactions = transactions.filter(t => {
+        const transactionDate = new Date(t.date)
+        const transactionYear = transactionDate.getFullYear()
+        return transactionYear === selectedYear
+      })
+    }
+    
+    filteredTransactions.forEach((t) => {
+      const category = t.Categoria || t.category || 'Sem categoria'
+      const amount = Math.abs(t.amount)
+      
+      if (t.type === 'income' || t.Natureza === 'Receita') {
+        const current = incomeMap.get(category) || 0
+        incomeMap.set(category, current + amount)
+      } else {
+        const current = expenseMap.get(category) || 0
+        expenseMap.set(category, current + amount)
+      }
+    })
+    
+    // Converter para arrays e ordenar por valor (decrescente)
+    const income = Array.from(incomeMap.entries())
+      .map(([category, amount]) => ({ name: category, value: amount }))
+      .sort((a, b) => b.value - a.value)
+    
+    const expenses = Array.from(expenseMap.entries())
+      .map(([category, amount]) => ({ name: category, value: amount }))
+      .sort((a, b) => b.value - a.value)
+    
+    const totalIncome = income.reduce((sum, item) => sum + item.value, 0)
+    const totalExpenses = expenses.reduce((sum, item) => sum + item.value, 0)
+    const balance = totalIncome - totalExpenses
+    
+    return { income, expenses, totalIncome, totalExpenses, balance }
+  }, [transactions, selectedMonth, selectedYear])
+
   // Cálculo dos dados salariais
   const salaryData = useMemo(() => {
     const currentDate = new Date()
@@ -165,13 +217,13 @@ const ChartsSection = ({ charts, transactions, selectedMonth, selectedYear }: Ch
             className={`tab-button ${activeTab === 'monthly' ? 'active' : ''}`}
             onClick={() => setActiveTab('monthly')}
           >
-            Mensal
+            Gráficos
           </button>
           <button
             className={`tab-button ${activeTab === 'categories' ? 'active' : ''}`}
             onClick={() => setActiveTab('categories')}
           >
-            Categorias
+            Operacional
           </button>
           <button
             className={`tab-button ${activeTab === 'salary' ? 'active' : ''}`}
@@ -226,32 +278,53 @@ const ChartsSection = ({ charts, transactions, selectedMonth, selectedYear }: Ch
             </LineChart>
           </ResponsiveContainer>
         ) : activeTab === 'categories' ? (
-          <div className="categories-charts">
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={charts.categories}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis
-                  dataKey="category"
-                  stroke="var(--text-muted)"
-                  style={{ fontSize: '0.875rem' }}
-                />
-                <YAxis
-                  stroke="var(--text-muted)"
-                  style={{ fontSize: '0.875rem' }}
-                  tickFormatter={formatCurrency}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'var(--bg-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    color: 'var(--text-primary)',
-                  }}
-                  formatter={(value: number) => formatCurrency(value)}
-                />
-                <Bar dataKey="amount" fill="#4A8FE7" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="salary-analysis">
+            <div className="salary-details">
+              <div className="detail-section">
+                <h4>Receitas por Categoria</h4>
+                <div className="detail-list" style={{ minHeight: `${Math.max(categoriesData.income.length, categoriesData.expenses.length) * 2.5}rem` }}>
+                  {categoriesData.income.length > 0 ? (
+                    categoriesData.income.map((item, index) => (
+                      <div key={index} className="detail-item">
+                        <span className="detail-name">{item.name}</span>
+                        <span className="detail-value success">{formatCurrency(item.value)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="detail-empty">Nenhuma receita encontrada</div>
+                  )}
+                </div>
+                <div className="detail-total success">
+                  <span>Total de Receitas</span>
+                  <span className="total-value">{formatCurrency(categoriesData.totalIncome)}</span>
+                </div>
+              </div>
+
+              <div className="detail-section">
+                <h4>Despesas por Categoria</h4>
+                <div className="detail-list" style={{ minHeight: `${Math.max(categoriesData.income.length, categoriesData.expenses.length) * 2.5}rem` }}>
+                  {categoriesData.expenses.length > 0 ? (
+                    categoriesData.expenses.map((item, index) => (
+                      <div key={index} className="detail-item">
+                        <span className="detail-name">{item.name}</span>
+                        <span className="detail-value error">{formatCurrency(item.value)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="detail-empty">Nenhuma despesa encontrada</div>
+                  )}
+                </div>
+                <div className="detail-total error">
+                  <span>Total de Despesas</span>
+                  <span className="total-value">{formatCurrency(categoriesData.totalExpenses)}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className={`salary-liquid ${categoriesData.balance >= 0 ? 'positive' : 'negative'}`}>
+              <span className="liquid-label">Saldo</span>
+              <span className="liquid-value">{formatCurrency(categoriesData.balance)}</span>
+            </div>
           </div>
         ) : (
           <div className="salary-analysis">

@@ -44,6 +44,12 @@ function App() {
 
   useEffect(() => {
     loadData()
+    
+    // Verificar se deve abrir em modo Fluxo de Caixa
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('page') === 'cashflow') {
+      setIsCashFlowMode(true)
+    }
   }, [])
 
   const loadData = async () => {
@@ -188,7 +194,12 @@ function App() {
             selectedMonth={selectedMonth}
             selectedYear={selectedYear}
           />
-          <RecentTransactions transactions={filteredData.transactions} />
+          <RecentTransactions 
+            transactions={filteredData.transactions}
+            onViewAll={() => setIsAdminMode(true)}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+          />
         </div>
       </main>
       
