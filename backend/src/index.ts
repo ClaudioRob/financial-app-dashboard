@@ -435,6 +435,73 @@ app.delete('/api/account-plan/all', (req: Request, res: Response) => {
   res.json({ message: 'Plano de contas limpo' })
 })
 
+// Função para atualizar lançamentos quando uma conta do plano é modificada
+const updateTransactionsByAccountId = (idConta: number | string, updatedAccount: AccountPlan) => {
+  let updatedCount = 0
+  
+  transactions.forEach((transaction) => {
+    // Verifica se o Id_Item corresponde ao ID_Conta que foi atualizado
+    if (String(transaction.Id_Item) === String(idConta)) {
+      // Atualiza os campos da transação com os dados da conta atualizada
+      transaction.Natureza = updatedAccount.Natureza
+      transaction.Tipo = updatedAccount.Tipo
+      transaction.Categoria = updatedAccount.Categoria
+      transaction.SubCategoria = updatedAccount.SubCategoria
+      transaction.Item = updatedAccount.Conta
+      transaction.category = updatedAccount.Categoria
+      transaction.description = updatedAccount.Conta
+      updatedCount++
+    }
+  })
+  
+  if (updatedCount > 0) {
+    saveTransactions(transactions, nextId)
+    console.log(`✅ ${updatedCount} lançamentos atualizados para ID_Conta ${idConta}`)
+  }
+  
+  return updatedCount
+}
+
+// Endpoint para atualizar uma conta específica do plano de contas
+app.put('/api/account-plan/:id', (req: Request, res: Response) => {
+  const idParam = req.params.id
+  const id = isNaN(Number(idParam)) ? idParam : parseInt(idParam)
+  const updateData = req.body
+  
+  // Verifica se a conta existe
+  if (!accountPlan.has(id)) {
+    return res.status(404).json({ error: 'Conta não encontrada no plano de contas' })
+  }
+  
+  // Obtém a conta atual
+  const currentAccount = accountPlan.get(id)!
+  
+  // Atualiza a conta com os novos dados
+  const updatedAccount: AccountPlan = {
+    ID_Conta: currentAccount.ID_Conta, // ID não pode ser alterado
+    Natureza: normalizeString(updateData.Natureza || currentAccount.Natureza),
+    Tipo: normalizeString(updateData.Tipo || currentAccount.Tipo),
+    Categoria: normalizeString(updateData.Categoria || currentAccount.Categoria),
+    SubCategoria: normalizeString(updateData.SubCategoria || currentAccount.SubCategoria),
+    Conta: normalizeString(updateData.Conta || currentAccount.Conta),
+  }
+  
+  // Atualiza no mapa
+  accountPlan.set(id, updatedAccount)
+  
+  // Salva o plano de contas atualizado
+  saveAccountPlan(accountPlan)
+  
+  // Atualiza automaticamente os lançamentos relacionados
+  const updatedTransactions = updateTransactionsByAccountId(id, updatedAccount)
+  
+  res.json({ 
+    message: 'Conta atualizada com sucesso',
+    account: updatedAccount,
+    transactionsUpdated: updatedTransactions
+  })
+})
+
 app.post('/api/transactions/import', (req: Request, res: Response) => {
   const { transactions: importedTransactions, validateAccountPlan = true } = req.body
   
