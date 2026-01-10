@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { X, Edit2, Trash2, Save, Plus, Upload, ChevronUp, ChevronDown, ThumbsUp, ThumbsDown, Clock } from './icons'
+import { X, Edit2, Trash2, Save, Plus, Upload, ChevronUp, ChevronDown, ThumbsUp, ThumbsDown, Clock, AlertCircle } from './icons'
 import { fetchAccountPlan, importAccountPlan, type AccountPlan, clearAccountPlan } from '../services/api'
 import { fetchDashboardData, updateTransaction, deleteTransaction, clearAllData } from '../services/api'
 import ImportModal from './ImportModal'
@@ -14,40 +14,56 @@ type SortField = string
 type SortDirection = 'asc' | 'desc' | null
 
 // Função helper para determinar status automático
-const getAutoStatus = (date: string): 'P' | 'R' => {
+// Datas futuras = P (Previsto), datas passadas = A (Atrasado)
+// Status R (Realizado) só pode ser definido manualmente pelo usuário
+const getAutoStatus = (date: string): 'P' | 'A' => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const transactionDate = new Date(date)
   transactionDate.setHours(0, 0, 0, 0)
-  return transactionDate > today ? 'P' : 'R'
+  return transactionDate > today ? 'P' : 'A'
 }
 
 // Função helper para obter cor do status
-const getStatusColor = (status: 'P' | 'R' | 'N'): string => {
+const getStatusColor = (status: 'P' | 'R' | 'N' | 'A'): string => {
   switch (status) {
     case 'P': return '#3498db' // Azul - Previsto
     case 'R': return '#27ae60' // Verde - Realizado
     case 'N': return '#e74c3c' // Vermelho - Não Realizado
+    case 'A': return '#f39c12' // Laranja - Atrasado
     default: return '#95a5a6' // Cinza - Padrão
   }
 }
 
 // Função helper para obter próximo status no ciclo
-const getNextStatus = (currentStatus: 'P' | 'R' | 'N' | undefined, date: string): 'P' | 'R' | 'N' => {
+const getNextStatus = (currentStatus: 'P' | 'R' | 'N' | 'A' | undefined, date: string): 'P' | 'R' | 'N' | 'A' => {
   const current = currentStatus || getAutoStatus(date)
-  // Ciclo: P -> R -> N -> P
-  if (current === 'P') return 'R'
+  // Ciclo: P -> A -> R -> N -> P
+  if (current === 'P') return 'A'
+  if (current === 'A') return 'R'
   if (current === 'R') return 'N'
   return 'P'
 }
 
 // Função helper para obter ícone do status
-const getStatusIcon = (status: 'P' | 'R' | 'N', size: number = 16) => {
+const getStatusIcon = (status: 'P' | 'R' | 'N' | 'A', size: number = 16) => {
   switch (status) {
     case 'R': return <ThumbsUp size={size} />
     case 'N': return <ThumbsDown size={size} />
     case 'P': return <Clock size={size} />
+    case 'A': return <AlertCircle size={size} />
     default: return <Clock size={size} />
+  }
+}
+
+// Função helper para obter título do status
+const getStatusTitle = (status: 'P' | 'R' | 'N' | 'A'): string => {
+  switch (status) {
+    case 'P': return 'Previsto'
+    case 'R': return 'Realizado'
+    case 'N': return 'Não Realizado'
+    case 'A': return 'Atrasado'
+    default: return 'Previsto'
   }
 }
 
@@ -195,7 +211,7 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
         amount: 0,
         type: 'expense' as 'income' | 'expense',
         category: '',
-        status: 'P' as 'P' | 'R' | 'N',
+        status: 'P' as 'P' | 'R' | 'N' | 'A',
       }
       
       setTransactions([newTransaction, ...transactions])
@@ -949,7 +965,7 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                                 minWidth: '36px',
                                 minHeight: '36px'
                               }}
-                              title={editedTransaction.status === 'P' ? 'Previsto' : editedTransaction.status === 'R' ? 'Realizado' : 'Não Realizado'}
+                              title={getStatusTitle(editedTransaction.status || getAutoStatus(editedTransaction.Data || editedTransaction.date))}
                             >
                               {getStatusIcon(editedTransaction.status || getAutoStatus(editedTransaction.Data || editedTransaction.date), 18)}
                             </button>
@@ -992,7 +1008,7 @@ const AdminDashboard = ({ onClose }: AdminDashboardProps) => {
                                 minWidth: '32px',
                                 minHeight: '32px'
                               }}
-                              title={(transaction.status || getAutoStatus(transaction.Data || transaction.date)) === 'P' ? 'Previsto' : (transaction.status || getAutoStatus(transaction.Data || transaction.date)) === 'R' ? 'Realizado' : 'Não Realizado'}
+                              title={getStatusTitle(transaction.status || getAutoStatus(transaction.Data || transaction.date))}
                             >
                               {getStatusIcon(transaction.status || getAutoStatus(transaction.Data || transaction.date), 16)}
                             </span>

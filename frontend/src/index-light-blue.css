@@ -1,0 +1,98 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  /* NOVA PALETA - Fundo Suave Azul Claro */
+  /* Azuis principais */
+  --primary: #2B7DE9;
+  --primary-dark: #1A5BBD;
+  --primary-light: #4A9FF5;
+  --secondary: #3B8BF0;
+  --accent: #2B7DE9;
+  
+  /* Fundos - tons de azul claro suave */
+  --bg-primary: linear-gradient(135deg, #E8F4FD 0%, #F0F8FF 50%, #E3F2FD 100%);
+  --bg-secondary: rgba(225, 242, 254, 0.7);
+  --bg-card: rgba(255, 255, 255, 0.75);
+  --bg-hover: rgba(43, 125, 233, 0.08);
+  --bg-tertiary: rgba(235, 245, 255, 0.9);
+  
+  /* Texto - tons escuros para contraste */
+  --text-primary: #1A2B4A;
+  --text-secondary: #4A6A8C;
+  --text-muted: #7A95B0;
+  
+  /* Bordas - azul suave translúcido */
+  --border: rgba(43, 125, 233, 0.15);
+  --border-color: rgba(43, 125, 233, 0.15);
+  --border-light: rgba(43, 125, 233, 0.25);
+  
+  /* Cores primárias (aliases) */
+  --primary-color: #2B7DE9;
+  
+  /* Status - mantendo verde e vermelho tradicionais */
+  --success: #10B981;
+  --success-light: #34D399;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --error-light: #F87171;
+  --info: #2B7DE9;
+  
+  /* Sombras suaves com azul */
+  --shadow-sm: 0 1px 2px 0 rgba(43, 125, 233, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(43, 125, 233, 0.12);
+  --shadow-lg: 0 10px 15px -3px rgba(43, 125, 233, 0.15);
+  --shadow-xl: 0 20px 25px -5px rgba(43, 125, 233, 0.18);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Gradiente de fundo suave azul claro com toques de verde e branco */
+  background: linear-gradient(135deg, 
+    #E8F4FD 0%, 
+    #F0F8FF 20%, 
+    #E3F2FD 40%,
+    #E8F5E9 60%,
+    #F0F8FF 80%,
+    #FAFBFF 100%
+  );
+  background-attachment: fixed;
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Scrollbar personalizada - azul claro */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(225, 242, 254, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(43, 125, 233, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(43, 125, 233, 0.5);
+}

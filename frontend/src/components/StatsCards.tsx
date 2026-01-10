@@ -12,10 +12,11 @@ interface StatsCardsProps {
 
 const StatsCards = ({ balance }: StatsCardsProps) => {
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
+    const formatted = new Intl.NumberFormat('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(value)
+    return `R$ ${formatted}`
   }
 
   const cards = [

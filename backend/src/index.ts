@@ -105,7 +105,7 @@ interface Transaction {
   amount: number
   type: 'income' | 'expense'
   category: string
-  status?: 'P' | 'R' | 'N'  // P = Previsto, R = Realizado, N = Não Realizado
+  status?: 'P' | 'R' | 'N' | 'A'  // P = Previsto, R = Realizado, N = Não Realizado, A = Atrasado
   // Campos adicionais para compatibilidade com plano de contas
   // 10 colunas da planilha: Id_Item, Natureza, Tipo, Categoria, SubCategoria, Operação, Origem|Destino, Item, Data, Valor
   Id_Item?: number | string
@@ -142,12 +142,14 @@ let nextId = loadedData.nextId
 let accountPlan: Map<number | string, AccountPlan> = loadAccountPlan()
 
 // Função helper para determinar status automático
-const getAutoStatus = (date: string): 'P' | 'R' => {
+// Datas futuras = P (Previsto), datas passadas = A (Atrasado)
+// Status R (Realizado) só pode ser definido manualmente pelo usuário
+const getAutoStatus = (date: string): 'P' | 'A' => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const transactionDate = new Date(date)
   transactionDate.setHours(0, 0, 0, 0)
-  return transactionDate > today ? 'P' : 'R'
+  return transactionDate > today ? 'P' : 'A'
 }
 
 // Funções auxiliares

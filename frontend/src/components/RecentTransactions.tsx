@@ -52,12 +52,16 @@ const RecentTransactions = ({ transactions, onViewAll, selectedMonth, selectedYe
   }
 
   // Obter próximos pagamentos e recebimentos do mês atual ou futuros
+  const today = new Date()
+  today.setHours(0, 0, 0, 0) // Zerar horas para comparação apenas de data
+  
   const upcomingTransactions = transactions.filter(t => {
     const [year, month, day] = t.date.split('-')
     const transDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day))
+    transDate.setHours(0, 0, 0, 0) // Zerar horas para comparação apenas de data
     
-    // Só mostrar transações do mês atual ou futuras
-    return transDate >= now
+    // Incluir transações do dia atual e futuras
+    return transDate >= today
   }).sort((a, b) => {
     const dateA = new Date(a.date).getTime()
     const dateB = new Date(b.date).getTime()
